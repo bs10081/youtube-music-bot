@@ -6,10 +6,7 @@ import type {
   PlaybackSettings,
 } from "../types/index.ts";
 import { getPlayerService } from "./player.service.ts";
-import {
-  getMusicService,
-  type TrackLoudnessInfo,
-} from "./music.service.ts";
+import { getMusicService } from "./music.service.ts";
 import { pushRecentTrackId, selectRadioCandidates } from "./radio.helpers.ts";
 import { log } from "../utils/logger.ts";
 
@@ -38,10 +35,6 @@ const MAX_CROSSFADE_DURATION_SECONDS = 8;
 const MIN_CROSSFADE_START_POSITION_SECONDS = 5;
 const CROSSFADE_START_TOLERANCE_SECONDS = 0.35;
 const MAX_CROSSFADE_TRIGGER_LEAD_SECONDS = 1;
-const VOLUME_NORMALIZATION_REFERENCE_DB = -14;
-const MAX_VOLUME_NORMALIZATION_GAIN_DB = 0;
-const MAX_VOLUME_NORMALIZATION_ATTENUATION_DB = 12;
-const MAX_VOLUME_NORMALIZATION_MULTIPLIER = 1;
 
 class QueueService {
   private static instance: QueueService | undefined;
@@ -573,13 +566,10 @@ class QueueService {
     this.broadcastTrackLoading(nextTrack);
 
     try {
-      const volumeMultiplierPromise =
-        this.resolveTrackVolumeMultiplier(nextTrack);
       log.info("Fetching direct stream URL for playback", {
         videoId: nextTrack.videoId,
       });
       const streamResult = await getMusicService().getStreamUrl(nextTrack.videoId);
-      const volumeMultiplier = await volumeMultiplierPromise;
       log.info("Direct stream URL obtained", {
         source: streamResult.source,
         bitrate: streamResult.bitrate,
@@ -587,7 +577,6 @@ class QueueService {
       });
       await player.playUrl(streamResult.url, {
         trackId: nextTrack.videoId,
-        volumeMultiplier,
       });
       const didSyncDuration = this.syncCurrentDurationFromPlayer();
       log.info("Playback started successfully via direct stream URL", {
@@ -609,10 +598,7 @@ class QueueService {
       });
 
       try {
-        const volumeMultiplier = await this.resolveTrackVolumeMultiplier(nextTrack);
-        await player.play(nextTrack.videoId, {
-          volumeMultiplier,
-        });
+        await player.play(nextTrack.videoId);
         const didSyncDuration = this.syncCurrentDurationFromPlayer();
         log.info("Fallback playback started successfully via YouTube URL");
         if (didSyncDuration) {
@@ -725,13 +711,13 @@ class QueueService {
     const volumeNormalizationChanged =
       this.playbackSettings.volumeNormalizationEnabled !==
       nextSettings.volumeNormalizationEnabled;
-    const nextTrack = this.queue[0] ?? null;
     this.playbackSettings = nextSettings;
     this.broadcastState();
 
     if (volumeNormalizationChanged) {
-      void this.syncTrackVolumeNormalization(this.currentTrack);
-      void this.syncTrackVolumeNormalization(nextTrack);
+      getPlayerService().setVolumeNormalizationEnabled(
+        nextSettings.volumeNormalizationEnabled,
+      );
     }
 
     void this.syncNextTrackPreload({ force: true });
@@ -1037,15 +1023,12 @@ class QueueService {
 
     const request = (async () => {
       try {
-        const volumeMultiplierPromise =
-          this.resolveTrackVolumeMultiplier(nextTrack);
         log.info("Preloading next track", {
           videoId: nextTrack.videoId,
           title: nextTrack.title,
         });
 
         const streamResult = await getMusicService().getStreamUrl(nextTrack.videoId);
-        const volumeMultiplier = await volumeMultiplierPromise;
         if (
           requestId !== this.preloadRequestId ||
           this.queue[0]?.videoId !== nextTrack.videoId
@@ -1053,9 +1036,7 @@ class QueueService {
           return false;
         }
 
-        const ready = await player.preloadUrl(nextTrack.videoId, streamResult.url, {
-          volumeMultiplier,
-        });
+        const ready = await player.preloadUrl(nextTrack.videoId, streamResult.url);
         if (
           !ready ||
           requestId !== this.preloadRequestId ||
@@ -1197,39 +1178,6 @@ class QueueService {
     this.fetchAndBroadcastLyrics();
     this.maybeHydrateRadioQueue();
     void this.syncNextTrackPreload({ force: true });
-  }
-
-  private async syncTrackVolumeNormalization(track: Track | null): Promise<void> {
-    if (!track?.videoId) {
-      return;
-    }
-
-    const volumeMultiplier = await this.resolveTrackVolumeMultiplier(track);
-    getPlayerService().setTrackVolumeMultiplier(track.videoId, volumeMultiplier);
-  }
-
-  private async resolveTrackVolumeMultiplier(track: Track | null): Promise<number> {
-    if (!track?.videoId || !this.playbackSettings.volumeNormalizationEnabled) {
-      return 1;
-    }
-
-    const loudnessInfo = await getMusicService().getTrackLoudness(track.videoId);
-    const normalizationGainDb = resolveNormalizationGainDb(loudnessInfo);
-    const volumeMultiplier = clampVolumeNormalizationMultiplier(
-      Math.pow(10, normalizationGainDb / 20),
-    );
-    const metadataSource = resolveLoudnessMetadataSource(loudnessInfo);
-
-    log.debug("Resolved track volume normalization", {
-      videoId: track.videoId,
-      loudnessDb: loudnessInfo?.loudnessDb,
-      perceptualLoudnessDb: loudnessInfo?.perceptualLoudnessDb,
-      metadataSource,
-      normalizationGainDb,
-      volumeMultiplier,
-    });
-
-    return volumeMultiplier;
   }
 
   resetForTests(): void {
@@ -1514,63 +1462,6 @@ function arePlaybackSettingsEqual(
     left.crossfadeDurationSeconds === right.crossfadeDurationSeconds &&
     left.volumeNormalizationEnabled === right.volumeNormalizationEnabled
   );
-}
-
-function resolveNormalizationGainDb(
-  loudnessInfo: TrackLoudnessInfo | null,
-): number {
-  const loudnessDb = loudnessInfo?.loudnessDb;
-  if (typeof loudnessDb === "number" && Number.isFinite(loudnessDb)) {
-    return clampNormalizationGainDb(loudnessDb > 0 ? -loudnessDb : 0);
-  }
-
-  const perceptualLoudnessDb = loudnessInfo?.perceptualLoudnessDb;
-  if (
-    typeof perceptualLoudnessDb === "number" &&
-    Number.isFinite(perceptualLoudnessDb)
-  ) {
-    return clampNormalizationGainDb(
-      VOLUME_NORMALIZATION_REFERENCE_DB - perceptualLoudnessDb,
-    );
-  }
-
-  return 0;
-}
-
-// Volume normalization only attenuates louder tracks and never boosts quieter ones.
-function clampNormalizationGainDb(gainDb: number): number {
-  return Math.max(
-    -MAX_VOLUME_NORMALIZATION_ATTENUATION_DB,
-    Math.min(MAX_VOLUME_NORMALIZATION_GAIN_DB, gainDb),
-  );
-}
-
-function clampVolumeNormalizationMultiplier(multiplier: number): number {
-  if (!Number.isFinite(multiplier) || multiplier <= 0) {
-    return MAX_VOLUME_NORMALIZATION_MULTIPLIER;
-  }
-
-  return Math.min(MAX_VOLUME_NORMALIZATION_MULTIPLIER, multiplier);
-}
-
-function resolveLoudnessMetadataSource(
-  loudnessInfo: TrackLoudnessInfo | null,
-): "loudnessDb" | "perceptualLoudnessDb" | "none" {
-  if (
-    typeof loudnessInfo?.loudnessDb === "number" &&
-    Number.isFinite(loudnessInfo.loudnessDb)
-  ) {
-    return "loudnessDb";
-  }
-
-  if (
-    typeof loudnessInfo?.perceptualLoudnessDb === "number" &&
-    Number.isFinite(loudnessInfo.perceptualLoudnessDb)
-  ) {
-    return "perceptualLoudnessDb";
-  }
-
-  return "none";
 }
 
 function isValidRequester(

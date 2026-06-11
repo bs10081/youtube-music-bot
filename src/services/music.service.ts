@@ -34,11 +34,6 @@ import {
   type ParsedYouTubeCollection,
 } from "../utils/youtube-url.ts";
 
-export interface TrackLoudnessInfo {
-  loudnessDb?: number;
-  perceptualLoudnessDb?: number;
-}
-
 // 確保緩存目錄存在
 const cacheDir = join(process.cwd(), ".cache", "youtubei");
 if (!existsSync(cacheDir)) {
@@ -143,13 +138,6 @@ type YtDlpMetadata = {
   playlist_count?: number | string;
 };
 
-type PlayerAudioConfig = {
-  loudness_db?: number;
-  perceptual_loudness_db?: number;
-  loudnessDb?: number;
-  perceptualLoudnessDb?: number;
-};
-
 type MusicEntityArtist = {
   name?: string;
   channel_id?: string;
@@ -184,44 +172,6 @@ function getMixTrackArtistName(item: MixPanelItem): string {
   }
 
   return "Unknown";
-}
-
-function getFiniteNumber(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return undefined;
-  }
-
-  return value;
-}
-
-function extractTrackLoudnessInfo(info: any): TrackLoudnessInfo | null {
-  const audioConfig: PlayerAudioConfig | undefined =
-    info?.player_config?.audio_config ||
-    info?.playerConfig?.audioConfig ||
-    info?.raw_player_response?.playerConfig?.audioConfig ||
-    info?.page?.player_config?.audio_config;
-
-  if (!audioConfig) {
-    return null;
-  }
-
-  const loudnessDb =
-    getFiniteNumber(audioConfig.loudness_db) ??
-    getFiniteNumber(audioConfig.loudnessDb);
-  const perceptualLoudnessDb =
-    getFiniteNumber(audioConfig.perceptual_loudness_db) ??
-    getFiniteNumber(audioConfig.perceptualLoudnessDb);
-
-  if (loudnessDb === undefined && perceptualLoudnessDb === undefined) {
-    return null;
-  }
-
-  return {
-    ...(loudnessDb !== undefined ? { loudnessDb } : {}),
-    ...(perceptualLoudnessDb !== undefined
-      ? { perceptualLoudnessDb }
-      : {}),
-  };
 }
 
 export function normalizeMixTracks(
@@ -1046,11 +996,6 @@ export class YtDlpCommandError extends Error {
 class MusicService {
   private searchCache = new Map<string, SearchResult[]>();
   private lyricsCache = new Map<string, LyricLine[]>();
-  private trackLoudnessCache = new Map<string, TrackLoudnessInfo | null>();
-  private trackLoudnessInFlight = new Map<
-    string,
-    Promise<TrackLoudnessInfo | null>
-  >();
   private streamUrlCache = new Map<
     string,
     { result: StreamUrlResult; expiresAt: number }
@@ -1194,51 +1139,6 @@ class MusicService {
         return null;
       }
     }
-  }
-
-  async getTrackLoudness(videoId: string): Promise<TrackLoudnessInfo | null> {
-    const normalizedVideoId = videoId.trim();
-    if (!normalizedVideoId) {
-      return null;
-    }
-
-    if (this.trackLoudnessCache.has(normalizedVideoId)) {
-      const cached = this.trackLoudnessCache.get(normalizedVideoId);
-      return cached ? { ...cached } : null;
-    }
-
-    const inFlight = this.trackLoudnessInFlight.get(normalizedVideoId);
-    if (inFlight) {
-      const result = await inFlight;
-      return result ? { ...result } : null;
-    }
-
-    const request = (async () => {
-      try {
-        const yt = await getClient();
-        const info = await yt.getBasicInfo(normalizedVideoId);
-        const loudnessInfo = extractTrackLoudnessInfo(info);
-
-        this.trackLoudnessCache.set(
-          normalizedVideoId,
-          loudnessInfo ? { ...loudnessInfo } : null,
-        );
-
-        return loudnessInfo ? { ...loudnessInfo } : null;
-      } catch (error) {
-        log.warn("Failed to load track loudness metadata", {
-          error: error instanceof Error ? error.message : String(error),
-          videoId: normalizedVideoId,
-        });
-        return null;
-      } finally {
-        this.trackLoudnessInFlight.delete(normalizedVideoId);
-      }
-    })();
-
-    this.trackLoudnessInFlight.set(normalizedVideoId, request);
-    const result = await request;
-    return result ? { ...result } : null;
   }
 
   private async getCollectionSearchResult(

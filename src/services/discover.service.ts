@@ -17,11 +17,18 @@ import type {
   TopRequestedEntry,
   Track,
 } from "../types/index.ts";
+import { getMusicService } from "./music.service.ts";
 import { log } from "../utils/logger.ts";
 
 const DISCOVER_FEED_CACHE_TTL_MS = 15 * 60 * 1000;
 const DISCOVER_VIDEO_METADATA_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_TOP_REQUESTED_LIMIT = 10;
+const DEFAULT_RECENTLY_REQUESTED_LIMIT = 10;
+const RECENTLY_REQUESTED_WINDOW_DAYS = 30;
+const PERSONALIZED_SEED_COUNT = 3;
+const PERSONALIZED_MIX_TRACKS_PER_SEED = 8;
+const PERSONALIZED_SECTION_MAX_ITEMS = 20;
+const PERSONALIZED_SECTION_MIN_ITEMS = 3;
 const MOODS_AND_GENRES_BROWSE_ID = "FEmusic_moods_and_genres";
 
 type DiscoverMarketConfig = DiscoverMarket & {
@@ -1101,6 +1108,48 @@ class DiscoverStatsStore {
     }));
   }
 
+  getRecentlyRequested(
+    limit: number = DEFAULT_RECENTLY_REQUESTED_LIMIT,
+    sinceDays: number = RECENTLY_REQUESTED_WINDOW_DAYS,
+  ): TopRequestedEntry[] {
+    const since = new Date(
+      Date.now() - sinceDays * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    const rows = this.db
+      .query(`
+        SELECT
+          activity.video_id,
+          activity.request_count,
+          activity.last_requested_at,
+          catalog.title,
+          catalog.artist,
+          catalog.thumbnail,
+          catalog.duration,
+          catalog.updated_at
+        FROM discover_track_activity AS activity
+        LEFT JOIN discover_track_catalog AS catalog
+          ON catalog.video_id = activity.video_id
+        WHERE activity.last_requested_at >= ?1
+        ORDER BY activity.last_requested_at DESC, activity.request_count DESC
+        LIMIT ?2
+      `)
+      .all(since, limit) as JoinedTopRequestedRow[];
+
+    return rows.map((row, index) => ({
+      rank: index + 1,
+      requestCount: row.request_count,
+      lastRequestedAt: row.last_requested_at,
+      track: {
+        videoId: row.video_id,
+        title: row.title || "Unknown",
+        artist: row.artist || "Unknown",
+        duration: row.duration || 0,
+        thumbnail: row.thumbnail || undefined,
+      },
+    }));
+  }
+
   close(): void {
     this.db.close();
   }
@@ -1127,6 +1176,11 @@ export class DiscoverService {
     string,
     Promise<DiscoverVideoMetadata | null>
   >();
+  private recommendationCache: {
+    seedKey: string;
+    items: DiscoverItem[];
+    expiresAt: number;
+  } | null = null;
 
   constructor(databasePath: string = getDefaultDiscoverStatsDbPath()) {
     this.statsStore = new DiscoverStatsStore(databasePath);
@@ -1233,6 +1287,119 @@ export class DiscoverService {
     });
   }
 
+  // 依本站點播統計產生個人化區塊;統計為空時回傳空陣列,讓畫面自然退回市場內容。
+  private async getPersonalizedSections(): Promise<DiscoverSection[]> {
+    const sections: DiscoverSection[] = [];
+
+    try {
+      const recentEntries = await this.enrichTopRequestedMetadata(
+        this.statsStore.getRecentlyRequested(),
+      );
+
+      const recentItems = recentEntries.map((entry) =>
+        createDiscoverTrackItem(entry.track),
+      );
+
+      if (recentItems.length >= PERSONALIZED_SECTION_MIN_ITEMS) {
+        sections.push({
+          id: "personal-recent",
+          title: "最近常聽",
+          subtitle: "根據這裡最近的點播紀錄",
+          origin: "personal",
+          items: recentItems,
+        });
+      }
+
+      const recommendedItems = await this.getRecommendedItems(
+        new Set(recentItems.map((item) => item.id)),
+      );
+
+      if (recommendedItems.length >= PERSONALIZED_SECTION_MIN_ITEMS) {
+        sections.push({
+          id: "personal-for-you",
+          title: "為你推薦",
+          subtitle: "從你最常點播的歌曲延伸",
+          origin: "personal",
+          items: recommendedItems,
+        });
+      }
+    } catch (error) {
+      log.warn("Failed to build personalized discover sections", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return sections;
+  }
+
+  private async getRecommendedItems(
+    excludedIds: Set<string>,
+  ): Promise<DiscoverItem[]> {
+    const seeds = this.statsStore.getTopRequested(PERSONALIZED_SEED_COUNT);
+    if (seeds.length === 0) {
+      return [];
+    }
+
+    const seedKey = seeds.map((seed) => seed.track.videoId).join(",");
+    const now = Date.now();
+
+    if (
+      this.recommendationCache &&
+      this.recommendationCache.seedKey === seedKey &&
+      this.recommendationCache.expiresAt > now
+    ) {
+      return this.recommendationCache.items.filter(
+        (item) => !excludedIds.has(item.id),
+      );
+    }
+
+    const seedVideoIds = new Set(seeds.map((seed) => seed.track.videoId));
+    const musicService = getMusicService();
+    // getMixTracks 失敗時回傳空陣列,單一種子失敗只會讓推薦變少,不會整段失敗。
+    const mixResults = await Promise.all(
+      seeds.map((seed) =>
+        musicService.getMixTracks(
+          seed.track.videoId,
+          PERSONALIZED_MIX_TRACKS_PER_SEED,
+        ),
+      ),
+    );
+
+    const seenIds = new Set<string>();
+    const items: DiscoverItem[] = [];
+
+    for (const tracks of mixResults) {
+      for (const track of tracks) {
+        if (
+          !track.videoId ||
+          seedVideoIds.has(track.videoId) ||
+          seenIds.has(track.videoId)
+        ) {
+          continue;
+        }
+
+        seenIds.add(track.videoId);
+        items.push(createDiscoverTrackItem(track));
+
+        if (items.length >= PERSONALIZED_SECTION_MAX_ITEMS) {
+          break;
+        }
+      }
+
+      if (items.length >= PERSONALIZED_SECTION_MAX_ITEMS) {
+        break;
+      }
+    }
+
+    this.recommendationCache = {
+      seedKey,
+      items,
+      expiresAt: now + DISCOVER_FEED_CACHE_TTL_MS,
+    };
+
+    return items.filter((item) => !excludedIds.has(item.id));
+  }
+
   async getFeed(
     marketInput: string | null | undefined,
     moodKey?: string | null,
@@ -1243,11 +1410,12 @@ export class DiscoverService {
     const normalizedMoodKey = moodKey?.trim() || null;
 
     if (!normalizedMoodKey) {
+      const personalizedSections = await this.getPersonalizedSections();
       return {
         market,
         moods: publicMoods,
         selectedMood: null,
-        sections: baseFeed.sections,
+        sections: [...personalizedSections, ...baseFeed.sections],
         warnings: [...baseFeed.warnings],
         fetchedAt: baseFeed.fetchedAt,
       };

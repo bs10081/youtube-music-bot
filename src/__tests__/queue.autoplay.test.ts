@@ -71,7 +71,6 @@ function suppressNextTrackPreload(
 function stubTrackLoudness(
   musicService: ReturnType<typeof getMusicService>,
 ): void {
-  stubMethod(musicService, "getTrackLoudness", async () => null);
 }
 
 const searchedTrack: Track = {

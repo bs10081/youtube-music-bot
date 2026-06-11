@@ -1,6 +1,76 @@
 import type { ReleaseNotesEntry } from "../types/index.ts";
 
 const fallbackReleaseNotesByVersion: Record<string, ReleaseNotesEntry> = {
+  "0.8.0": {
+    version: "0.8.0",
+    title: "動態音量平衡與 Discover 個人化",
+    publishedAt: "2026-06-12",
+    status: "preview",
+    summary:
+      "音量平衡改用播放器端動態響度濾鏡,新增 UI 開關;Discover 加入由本站點播紀錄驅動的個人化區塊,並補上多項安全與部署強化。",
+    sections: [
+      {
+        category: "changed",
+        title: "音量平衡重構",
+        description: "從每首歌固定增益改為播放時動態響度正規化。",
+        items: [
+          "播放管線改用 mpv 的 dynaudnorm 濾鏡即時平衡響度,歌曲內部與歌曲之間的音量起伏都會被拉向一致聽感。",
+          "桌面播放器與手機 Now Playing 介面新增「音量平衡」開關,切換後立即生效、不需重新播放。",
+          "移除舊的 YouTube loudness metadata 靜態增益路徑,避免與動態濾鏡疊加造成過度衰減。",
+        ],
+      },
+      {
+        category: "added",
+        title: "Discover 個人化",
+        description: "讓 Discover 從通用排行榜變成跟著這個站的口味走。",
+        items: [
+          "新增「最近常聽」區塊,呈現近 30 天的本站點播紀錄。",
+          "新增「為你推薦」區塊,以最常點播的歌曲為種子延伸相似曲目。",
+          "尚無點播紀錄時隱藏空白的本站熱門點播卡片,冷啟動直接顯示市場內容。",
+        ],
+      },
+      {
+        category: "fixed",
+        title: "安全與部署強化",
+        description: "收斂預設安全姿態並補齊生產環境基礎設施。",
+        items: [
+          "CORS 改為可透過 CORS_ORIGIN 白名單設定,未設定時不再同時允許萬用來源與憑證。",
+          "Docker 映像建置時驗證 yt-dlp 下載檔的 SHA-256 checksum。",
+          "新增 /api/health 健康檢查端點與 docker-compose healthcheck,並補上 .env.example 與啟動環境檢查。",
+          "修正 Ctrl+C / docker stop 時伺服器不會確實退出的問題。",
+        ],
+      },
+    ],
+  },
+  "0.7.11": {
+    version: "0.7.11",
+    title: "播放器介面全面重整",
+    publishedAt: "2026-05-09",
+    status: "preview",
+    summary:
+      "重新整理 WebUI 的視覺系統、手機安全區域與搜尋空狀態，保留專輯封面取色背景，同時降低主要流程被介面裝飾或彈窗打斷的情況。",
+    sections: [
+      {
+        category: "changed",
+        title: "視覺系統重整",
+        description: "把播放器 UI 收斂到更穩定的 design token 與元件語言。",
+        items: [
+          "建立更一致的 surface、文字、陰影、圓角與安全區域 token，讓桌面與手機版能共用同一套視覺節奏。",
+          "保留專輯封面取色與動態背景，但降低過多光暈與膠囊裝飾，讓歌曲資訊和播放控制更清楚。",
+        ],
+      },
+      {
+        category: "fixed",
+        title: "手機與搜尋體驗修正",
+        description: "修正實機檢視時會直接影響閱讀與操作的 UI 問題。",
+        items: [
+          "手機內容區改為避開底部迷你播放器與 TabBar，避免 Discover 卡片或列表內容被固定列遮住。",
+          "搜尋與空狀態改用動態主題 token，改善淺色背景上文字對比不足的問題。",
+          "版本更新視窗不再首次進入就自動覆蓋主畫面，改由版本徽章提示並讓使用者自行開啟。",
+        ],
+      },
+    ],
+  },
   "0.7.10": {
     version: "0.7.10",
     title: "Dynamic Voice 保守音量平衡",

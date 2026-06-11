@@ -47,6 +47,9 @@ const SESSION_VOLUME_RETRY_DELAY_MS = 120;
 const MAX_USER_VOLUME = 100;
 const MAX_SESSION_VOLUME = 200;
 const MAX_TRACK_VOLUME_MULTIPLIER = 1;
+// dynaudnorm:RMS 模式把感知響度拉向一致,3 秒級高斯平滑避免增益抽動(pumping),
+// m=5 限制最大增益避免把安靜前奏放大成噪音。
+const VOLUME_NORMALIZATION_FILTER = "dynaudnorm=f=400:g=15:m=5:r=0.8:p=0.9";
 
 class PlayerService {
   private static instance: PlayerService;
@@ -64,6 +67,7 @@ class PlayerService {
   private crossfadeTimer: ReturnType<typeof setInterval> | null = null;
   private crossfadeFinalizeTimeout: ReturnType<typeof setTimeout> | null = null;
   private retiringStopTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
+  private volumeNormalizationEnabled = true;
 
   private constructor() {
     this.cleanupOrphanedMpvProcesses();
@@ -197,6 +201,9 @@ class PlayerService {
       "--network-timeout=60",
       "--gapless-audio=yes",
       ...(options.startPaused ? ["--pause=yes"] : []),
+      ...(this.volumeNormalizationEnabled
+        ? [`--af=lavfi=[${VOLUME_NORMALIZATION_FILTER}]`]
+        : []),
       ...this.getAudioArgs(),
     ];
 
@@ -1354,6 +1361,36 @@ class PlayerService {
     }
   }
 
+  setVolumeNormalizationEnabled(enabled: boolean): void {
+    if (this.volumeNormalizationEnabled === enabled) {
+      return;
+    }
+
+    this.volumeNormalizationEnabled = enabled;
+    log.info("Volume normalization filter toggled", { enabled });
+
+    const command = enabled
+      ? ["af", "set", `lavfi=[${VOLUME_NORMALIZATION_FILTER}]`]
+      : ["af", "clr", ""];
+
+    const applyToSession = (session: PlayerSession | null): void => {
+      if (!session) {
+        return;
+      }
+      this.sendIpcCommand(session, command);
+    };
+
+    applyToSession(this.activeSession);
+    applyToSession(this.standbySession);
+    for (const session of this.retiringSessions) {
+      applyToSession(session);
+    }
+  }
+
+  isVolumeNormalizationEnabled(): boolean {
+    return this.volumeNormalizationEnabled;
+  }
+
   seek(position: number): void {
     if (!this.isPlaying || !this.activeSession) {
       log.warn("Cannot seek: no active playback");
@@ -1395,6 +1432,7 @@ class PlayerService {
     this.clearCrossfadeTimer();
     this.clearCrossfadeFinalizeTimeout();
     this.clearAllRetiringStopTimeouts();
+    this.volumeNormalizationEnabled = true;
   }
 }
 

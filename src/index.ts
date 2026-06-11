@@ -1,11 +1,22 @@
 import { createServer } from './server.ts';
 import { getAppMetadata } from "./utils/app-metadata.ts";
+import { validateEnvironment } from "./utils/env.ts";
 import { logRuntimeDependencyStatus } from "./utils/runtime-dependencies.ts";
 
 const metadata = getAppMetadata();
+validateEnvironment();
 logRuntimeDependencyStatus();
 const server = createServer();
 const displayHost = process.env.HOST?.trim() || "localhost";
+
+// player.service 的 SIGINT/SIGTERM handler 只負責清理 mpv,不會結束 process;
+// 這裡停止接受新連線後明確退出,避免 Ctrl+C / docker stop 時卡住。
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    server.stop();
+    process.exit(0);
+  });
+}
 
 console.log(`
 ╔════════════════════════════════════════════╗

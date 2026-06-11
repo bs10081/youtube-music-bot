@@ -452,7 +452,7 @@ export const LibraryView = ({ isMobile = false }: LibraryViewProps) => {
   );
 
   const contentClassName = isMobile
-    ? "h-full w-full px-4 pb-[176px] pt-4"
+    ? "h-full w-full px-4 pb-6 pt-4"
     : "h-full w-full";
 
   return (
@@ -650,7 +650,7 @@ const DesktopLibraryHome = ({
       </div>
     </Card>
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.85fr)]">
+    <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.85fr)]">
       <SavedMixPanel
         savedMixes={savedMixes}
         onReplayMix={onReplayMix}
@@ -1103,7 +1103,7 @@ const SavedMixPanel = ({
   <Card
     className={cn(
       "surface-card rounded-[30px] p-5",
-      !mobile && "flex h-full min-h-0 flex-col",
+      !mobile && "flex min-h-0 flex-col",
     )}
   >
     <div className="mb-4 shrink-0">
@@ -1113,8 +1113,8 @@ const SavedMixPanel = ({
       </p>
     </div>
     <ScrollArea
-      className={cn("w-full", !mobile && "min-h-0 flex-1 pr-1")}
-      maxHeight={mobile ? "34vh" : undefined}
+      className={cn("w-full", !mobile && "min-h-0 pr-1")}
+      maxHeight={mobile ? "34vh" : "42vh"}
     >
       <div className="grid gap-3">
         {savedMixes.length === 0 ? (

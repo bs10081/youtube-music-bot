@@ -1,4 +1,9 @@
-import { forwardRef, useState, type FormEvent } from "react";
+import {
+  forwardRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,11 +19,24 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
   ({ onSearch, isLoading, className }, ref) => {
     const [query, setQuery] = useState("");
 
-    const handleSubmit = (e: FormEvent) => {
-      e.preventDefault();
+    const submitQuery = () => {
       if (query.trim()) {
         onSearch(query.trim());
       }
+    };
+
+    const handleSubmit = (e: FormEvent) => {
+      e.preventDefault();
+      submitQuery();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== "Enter" || e.nativeEvent.isComposing) {
+        return;
+      }
+
+      e.preventDefault();
+      submitQuery();
     };
 
     return (
@@ -32,6 +50,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           placeholder="搜尋歌曲、藝人或貼上 YouTube 連結..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           disabled={isLoading}
           className="min-w-0 flex-1"
         />

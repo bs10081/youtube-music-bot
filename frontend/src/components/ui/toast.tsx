@@ -49,13 +49,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
           <div
             key={toast.id}
             className={cn(
-              "pointer-events-auto rounded-lg px-4 py-3 border border-gray-200",
+              "pointer-events-auto rounded-[var(--app-radius-md)] border border-[color:var(--surface-border)] px-4 py-3 shadow-[var(--surface-shadow)] backdrop-blur-xl",
               "animate-in slide-in-from-right-full",
-              toast.type === "success" && "bg-white text-gray-900",
-              toast.type === "error" && "bg-gray-900 text-white",
-              toast.type === "warning" && "bg-white text-gray-900",
+              toast.type === "success" &&
+                "bg-[var(--surface-overlay)] text-[var(--status-success-text)]",
+              toast.type === "error" &&
+                "bg-[var(--surface-overlay)] text-[var(--status-error-text)]",
+              toast.type === "warning" &&
+                "bg-[var(--surface-overlay)] text-[var(--status-warning-text)]",
               (!toast.type || toast.type === "info") &&
-                "bg-white text-gray-900",
+                "bg-[var(--surface-overlay)] text-[var(--text-primary)]",
             )}
           >
             {toast.message}

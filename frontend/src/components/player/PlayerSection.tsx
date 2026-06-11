@@ -4,6 +4,7 @@ import { ProgressBar } from "./ProgressBar";
 import { PlaybackControls } from "./PlaybackControls";
 import { VolumeControl } from "./VolumeControl";
 import { CrossfadeControl } from "./CrossfadeControl";
+import { VolumeNormalizationControl } from "./VolumeNormalizationControl";
 import { usePlayerStore } from "@/stores/playerStore";
 import { cn } from "@/lib/utils";
 import { OpenAlbumButton } from "@/components/album/OpenAlbumButton";
@@ -88,7 +89,7 @@ export const PlayerSection = ({
               >
                 <div
                   className={cn(
-                    "surface-subtle rounded-[28px] border border-[color:var(--dynamic-ring)]",
+                    "surface-subtle rounded-[var(--app-radius-xl)] border border-[color:var(--dynamic-ring)]",
                     isSidebarShell ? "p-4" : "p-4 xl:p-5",
                   )}
                 >
@@ -121,11 +122,13 @@ export const PlayerSection = ({
                       </p>
                       <CrossfadeControl />
                     </div>
+
+                    <VolumeNormalizationControl compact />
                   </div>
                 </div>
                 <div
                   className={cn(
-                    "surface-subtle rounded-[24px] border border-[color:var(--dynamic-ring)]",
+                    "surface-subtle rounded-[var(--app-radius-lg)] border border-[color:var(--dynamic-ring)]",
                     "p-4",
                   )}
                 >
@@ -139,7 +142,7 @@ export const PlayerSection = ({
                         alt={nextTrack.title}
                         size="md"
                         thumbnailQuality="sddefault"
-                        className="rounded-2xl"
+                        className="rounded-[var(--app-radius-md)]"
                       />
                       <div className="min-w-0 flex-1">
                         <p
@@ -168,7 +171,7 @@ export const PlayerSection = ({
                           </p>
                         ) : null}
                       </div>
-                      <span className="shrink-0 rounded-full border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)]">
+                      <span className="shrink-0 rounded-[var(--app-radius-sm)] border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)]">
                         {formatTime(nextTrack.duration)}
                       </span>
                     </div>

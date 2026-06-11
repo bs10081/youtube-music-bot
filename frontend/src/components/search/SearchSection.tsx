@@ -46,7 +46,7 @@ export const SearchSection = () => {
       } else {
         showToast({ message: response.error || "搜尋失敗", type: "error" });
       }
-    } catch (error) {
+    } catch {
       showToast({ message: "搜尋發生錯誤", type: "error" });
     } finally {
       setIsSearching(false);
@@ -62,7 +62,7 @@ export const SearchSection = () => {
       } else {
         showToast({ message: response.error || "加入失敗", type: "error" });
       }
-    } catch (error) {
+    } catch {
       showToast({ message: "加入發生錯誤", type: "error" });
     } finally {
       setAddingId(null);
@@ -107,7 +107,7 @@ export const SearchSection = () => {
           type: "error",
         });
       }
-    } catch (error) {
+    } catch {
       showToast({ message: "創建 Mix 發生錯誤", type: "error" });
     } finally {
       setCreatingMixId(null);
@@ -145,7 +145,7 @@ export const SearchSection = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-50">
+        <h2 className="text-xl font-semibold text-[var(--text-primary)]">
           搜尋音樂
         </h2>
       </div>

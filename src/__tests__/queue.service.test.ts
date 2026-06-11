@@ -282,22 +282,18 @@ describe("QueueService - seekTo functionality", () => {
       expect(queueService.getState().playbackSettings).toEqual(nextSettings);
     });
 
-    test("should resync the current and next track when volume normalization changes", () => {
-      const currentTrack = track("current-track", "Current Track");
-      const nextTrack = track("next-track", "Next Track");
-      const syncTrackSpy = mock(async (_track: Track | null) => {});
+    test("should toggle the player volume normalization filter when the setting changes", () => {
+      const playerService = getPlayerService();
+      const toggleSpy = mock((_enabled: boolean) => {});
       const syncPreloadSpy = mock(async (_options?: { force?: boolean }) => false);
       const internalQueueService = queueService as unknown as {
-        currentTrack: Track | null;
-        queue: Track[];
-        syncTrackVolumeNormalization: (track: Track | null) => Promise<void>;
         syncNextTrackPreload: (options?: { force?: boolean }) => Promise<boolean>;
       };
 
       stubMethod(
-        internalQueueService,
-        "syncTrackVolumeNormalization",
-        syncTrackSpy as unknown as typeof internalQueueService.syncTrackVolumeNormalization,
+        playerService,
+        "setVolumeNormalizationEnabled",
+        toggleSpy as unknown as typeof playerService.setVolumeNormalizationEnabled,
       );
       stubMethod(
         internalQueueService,
@@ -305,288 +301,19 @@ describe("QueueService - seekTo functionality", () => {
         syncPreloadSpy as unknown as typeof internalQueueService.syncNextTrackPreload,
       );
 
-      internalQueueService.currentTrack = currentTrack;
-      internalQueueService.queue = [nextTrack];
+      queueService.setPlaybackSettings({
+        volumeNormalizationEnabled: false,
+      });
+
+      expect(toggleSpy).toHaveBeenCalledTimes(1);
+      expect(toggleSpy.mock.calls[0]?.[0]).toBe(false);
+      expect(syncPreloadSpy).toHaveBeenCalledWith({ force: true });
 
       queueService.setPlaybackSettings({
         volumeNormalizationEnabled: false,
       });
 
-      expect(syncTrackSpy).toHaveBeenCalledTimes(2);
-      expect(syncTrackSpy.mock.calls[0]?.[0]).toBe(currentTrack);
-      expect(syncTrackSpy.mock.calls[1]?.[0]).toBe(nextTrack);
-      expect(syncPreloadSpy).toHaveBeenCalledWith({ force: true });
-    });
-
-    test("should prefer loudnessDb metadata without boosting quieter tracks", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: -4.2800007,
-          perceptualLoudnessDb: -18.28,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-perceptual", "Perceptual Track"),
-        );
-
-      expect(volumeMultiplier).toBe(1);
-    });
-
-    test("should prefer loudnessDb over perceptual metadata and never boost", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: -4.2800007,
-          perceptualLoudnessDb: -7.39,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-conflicting-quiet", "Conflicting Quiet Track"),
-        );
-
-      expect(volumeMultiplier).toBe(1);
-    });
-
-    test("should attenuate loud tracks based on loudnessDb", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: 6.61,
-          perceptualLoudnessDb: -7.39,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-perceptual-loud", "Perceptual Loud Track"),
-        );
-
-      expect(volumeMultiplier).toBeCloseTo(Math.pow(10, -6.61 / 20), 5);
-      expect(volumeMultiplier).toBeLessThan(1);
-    });
-
-    test("should use a conservative loudnessDb fallback without boosting quieter tracks", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: -4.2800007,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-fallback-quiet", "Fallback Quiet Track"),
-        );
-
-      expect(volumeMultiplier).toBe(1);
-    });
-
-    test("should fall back to perceptual metadata when loudnessDb is unavailable", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          perceptualLoudnessDb: -10,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-perceptual-fallback", "Perceptual Fallback Track"),
-        );
-
-      expect(volumeMultiplier).toBeCloseTo(Math.pow(10, -4 / 20), 5);
-      expect(volumeMultiplier).toBeLessThan(1);
-    });
-
-    test("should keep neutral volume for zero loudnessDb and missing metadata", async () => {
-      const loudnessSamples = [
-        { loudnessDb: 0 },
-        {},
-        null,
-      ];
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-      let callIndex = 0;
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => loudnessSamples[callIndex++] ?? null) as typeof musicService.getTrackLoudness,
-      );
-
-      await expect(
-        internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-zero-loudness", "Zero Loudness Track"),
-        ),
-      ).resolves.toBe(1);
-      await expect(
-        internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-empty-metadata", "Empty Metadata Track"),
-        ),
-      ).resolves.toBe(1);
-      await expect(
-        internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-null-metadata", "Null Metadata Track"),
-        ),
-      ).resolves.toBe(1);
-    });
-
-    test("should ignore non-finite loudness metadata", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: Number.NaN,
-          perceptualLoudnessDb: Number.POSITIVE_INFINITY,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-invalid-metadata", "Invalid Metadata Track"),
-        );
-
-      expect(volumeMultiplier).toBe(1);
-    });
-
-    test("should attenuate loud tracks when only loudnessDb fallback is available", async () => {
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => ({
-          loudnessDb: 6.21,
-        })) as typeof musicService.getTrackLoudness,
-      );
-
-      const volumeMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-fallback-loud", "Fallback Loud Track"),
-        );
-
-      expect(volumeMultiplier).toBeCloseTo(Math.pow(10, -6.21 / 20), 5);
-      expect(volumeMultiplier).toBeLessThan(1);
-    });
-
-    test("should clamp normalization gain to attenuation-only boundaries", async () => {
-      const loudnessSamples = [
-        { perceptualLoudnessDb: -30 },
-        { loudnessDb: 20 },
-      ];
-      const musicService = getMusicService() as unknown as {
-        getTrackLoudness: (videoId: string) => Promise<{
-          loudnessDb?: number;
-          perceptualLoudnessDb?: number;
-        } | null>;
-      };
-      const internalQueueService = queueService as unknown as {
-        resolveTrackVolumeMultiplier: (track: Track | null) => Promise<number>;
-      };
-      let callIndex = 0;
-
-      stubMethod(
-        musicService,
-        "getTrackLoudness",
-        (async () => loudnessSamples[callIndex++] ?? null) as typeof musicService.getTrackLoudness,
-      );
-
-      const quietTrackMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-quiet", "Quiet Track"),
-        );
-      const attenuatedMultiplier =
-        await internalQueueService.resolveTrackVolumeMultiplier(
-          track("track-attenuate", "Attenuated Track"),
-        );
-
-      expect(quietTrackMultiplier).toBe(1);
-      expect(attenuatedMultiplier).toBeCloseTo(Math.pow(10, -12 / 20), 5);
+      expect(toggleSpy).toHaveBeenCalledTimes(1);
     });
   });
 

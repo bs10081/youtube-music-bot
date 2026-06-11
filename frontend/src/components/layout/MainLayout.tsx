@@ -18,12 +18,12 @@ export const MainLayout = ({
       <ArtworkThemeBackdrop theme={artworkTheme} />
       <div className="relative z-10 flex h-screen flex-col overflow-hidden">
         <Header onSearchClick={onSearchClick} />
-        <main className="flex-1 overflow-hidden min-h-0">
+        <main className="min-h-0 flex-1 overflow-hidden pb-[var(--mobile-bottom-stack)] lg:pb-0">
           {/* 桌面版：有 padding 和 max-width */}
-          <div className="mx-auto hidden h-full min-h-0 max-w-[1480px] px-4 py-4 lg:block xl:px-6 xl:py-5">
+          <div className="mx-auto hidden h-full min-h-0 max-w-[1480px] px-[var(--app-space-edge)] py-4 lg:block xl:py-5">
             {children}
           </div>
-          {/* 手機版：全高度 */}
+          {/* 手機版：內容區避開底部迷你播放器與 TabBar */}
           <div className="h-full lg:hidden">{children}</div>
         </main>
       </div>

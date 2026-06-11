@@ -1,6 +1,6 @@
 {
   "name": "youtube-music-bot",
-  "version": "0.7.10",
+  "version": "0.8.0",
   "description": "YouTube Music 點歌機器人 WebUI",
   "type": "module",
   "scripts": {

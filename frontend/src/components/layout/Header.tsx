@@ -153,6 +153,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
   const [isReleaseNotesLoading, setIsReleaseNotesLoading] = useState(false);
   const [releaseNotesError, setReleaseNotesError] = useState<string | null>(null);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
+  const [hasUnseenReleaseNotes, setHasUnseenReleaseNotes] = useState(false);
   const [selectedReleaseVersion, setSelectedReleaseVersion] = useState(
     frontendAppMetadata.appVersion,
   );
@@ -233,6 +234,10 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
   ) {
     setSelectedReleaseVersion(version);
     setActiveReleaseCategory("all");
+    if (currentReleaseNotes?.version) {
+      markReleaseNotesAsSeen(currentReleaseNotes.version);
+      setHasUnseenReleaseNotes(false);
+    }
     setIsVersionDialogOpen(true);
   }
 
@@ -306,21 +311,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
       return;
     }
 
-    if (hasSeenReleaseNotes(currentReleaseNotes.version)) {
-      return;
-    }
-
-    markReleaseNotesAsSeen(currentReleaseNotes.version);
-    const versionToOpen = currentReleaseNotes.version;
-    const openTimer = window.setTimeout(() => {
-      setSelectedReleaseVersion(versionToOpen);
-      setActiveReleaseCategory("all");
-      setIsVersionDialogOpen(true);
-    }, 0);
-
-    return () => {
-      window.clearTimeout(openTimer);
-    };
+    setHasUnseenReleaseNotes(!hasSeenReleaseNotes(currentReleaseNotes.version));
   }, [currentReleaseNotes]);
 
   const renderVersionBadgeButton = (className?: string) => (
@@ -331,33 +322,44 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
       title={versionTooltip}
       aria-label="查看版本資訊"
     >
-      <Badge variant={versionBadgeVariant}>v{frontendAppMetadata.appVersion}</Badge>
+      <Badge
+        variant={versionBadgeVariant}
+        className={cn(
+          "gap-1.5 border border-transparent",
+          hasUnseenReleaseNotes &&
+            "border-[color:var(--dynamic-ring)] shadow-[0_12px_26px_-20px_var(--accent-glow)]",
+        )}
+      >
+        v{frontendAppMetadata.appVersion}
+        {hasUnseenReleaseNotes ? (
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+        ) : null}
+      </Badge>
     </button>
   );
 
   return (
     <>
-      <header className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-subtle)]/90 px-4 py-3 backdrop-blur-xl lg:px-6 lg:py-4">
-        <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="hidden h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--surface-border)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm lg:flex">
+      <header className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-4 py-2.5 backdrop-blur-xl lg:px-5 lg:py-3">
+        <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--app-radius-md)] border border-[color:var(--surface-border)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm">
               <Music2 className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)] lg:text-[1.9rem]">
-                  <span className="lg:hidden">🎵</span>{" "}
+                <h1 className="truncate text-lg font-bold tracking-tight text-[var(--text-primary)] lg:text-2xl">
                   <span className="hidden sm:inline">YouTube Music Bot</span>
                 </h1>
                 {renderVersionBadgeButton("hidden sm:inline-flex")}
               </div>
-              <p className="hidden text-sm text-[var(--text-secondary)] lg:block">
+              <p className="hidden text-xs text-[var(--text-secondary)] xl:block">
                 Desktop jukebox with synced lyrics and live queue
               </p>
             </div>
           </div>
 
-          <div className="hidden w-[392px] grid-cols-3 items-center rounded-[24px] border border-[color:var(--surface-border)] bg-[var(--surface-subtle)] p-1 lg:grid">
+          <div className="hidden w-[352px] shrink-0 grid-cols-3 items-center rounded-[var(--app-radius-lg)] border border-[color:var(--surface-border)] bg-[var(--surface-subtle)] p-1 lg:grid xl:w-[392px]">
             {desktopModes.map((mode) => {
               const Icon = mode.icon;
 
@@ -367,7 +369,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
                   type="button"
                   onClick={() => setDesktopMode(mode.id)}
                   className={cn(
-                    "inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-semibold leading-none transition-colors",
+                    "inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-[var(--app-radius-md)] px-3 text-sm font-semibold leading-none transition-colors xl:h-11 xl:px-4",
                     desktopMode === mode.id
                       ? "bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-[0_12px_24px_-20px_var(--accent-glow)]"
                       : "text-[var(--text-secondary)]",
@@ -380,11 +382,11 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
             })}
           </div>
 
-          <div className="flex items-center gap-2 lg:flex-1 lg:justify-end lg:gap-4">
+          <div className="flex items-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end">
             <button
               type="button"
               onClick={onSearchClick}
-              className="desktop-command-button hidden min-w-[260px] items-center justify-between rounded-2xl border px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 lg:flex"
+              className="desktop-command-button hidden min-w-[220px] max-w-[260px] flex-1 items-center justify-between rounded-[var(--app-radius-lg)] border px-3 py-2.5 text-left transition-transform duration-200 hover:-translate-y-0.5 lg:flex xl:min-w-[260px] xl:px-4"
             >
               <span className="flex items-center gap-3 text-[var(--text-primary)]">
                 <Search className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -399,7 +401,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
               href="https://github.com/bs10081/youtube-music-bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--surface-border)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--app-radius-md)] border border-[color:var(--surface-border)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
               aria-label="前往 GitHub 專案"
             >
               <Github className="h-5 w-5" />
@@ -436,75 +438,77 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
                         <History className="h-4 w-4 text-[var(--accent)]" />
                         <span>版本歷史</span>
                       </div>
-                      <div className="mt-4 space-y-2">
-                        {isReleaseNotesLoading && releaseHistory.length === 0 ? (
-                          <div className="flex items-center gap-2 rounded-[22px] border border-[color:var(--surface-border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-[var(--text-secondary)]">
-                            <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
-                            正在載入 GitHub 版本歷史...
-                          </div>
-                        ) : null}
+                      <ScrollArea className="mt-4 pr-1 lg:max-h-[390px]">
+                        <div className="space-y-2">
+                          {isReleaseNotesLoading && releaseHistory.length === 0 ? (
+                            <div className="flex items-center gap-2 rounded-[22px] border border-[color:var(--surface-border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+                              <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
+                              正在載入 GitHub 版本歷史...
+                            </div>
+                          ) : null}
 
-                        {!isReleaseNotesLoading &&
-                        releaseHistory.length === 0 &&
-                        releaseNotesError ? (
-                          <div className="rounded-[22px] border border-[#f1d5ca] bg-[#fff4ef] px-4 py-3 text-sm leading-6 text-[#a95536]">
-                            {releaseNotesError}
-                          </div>
-                        ) : null}
+                          {!isReleaseNotesLoading &&
+                          releaseHistory.length === 0 &&
+                          releaseNotesError ? (
+                            <div className="rounded-[22px] border border-[#f1d5ca] bg-[#fff4ef] px-4 py-3 text-sm leading-6 text-[#a95536]">
+                              {releaseNotesError}
+                            </div>
+                          ) : null}
 
-                        {releaseHistory.map((entry) => {
-                          const isActive = entry.version === selectedReleaseNotes?.version;
-                          const isCurrent = entry.version === currentReleaseNotes?.version;
+                          {releaseHistory.map((entry) => {
+                            const isActive = entry.version === selectedReleaseNotes?.version;
+                            const isCurrent = entry.version === currentReleaseNotes?.version;
 
-                          return (
-                            <button
-                              key={entry.version}
-                              type="button"
-                              onClick={() => {
-                                setSelectedReleaseVersion(entry.version);
-                                setActiveReleaseCategory("all");
-                              }}
-                              className={cn(
-                                "w-full rounded-[22px] border px-4 py-3 text-left transition-all",
-                                isActive
-                                  ? "border-[var(--accent)]/20 bg-[var(--surface-elevated)] shadow-[0_18px_38px_-30px_var(--accent-glow)]"
-                                  : "border-[color:var(--surface-border)] bg-[var(--surface-subtle)]/70 hover:bg-[var(--surface-muted)]",
-                              )}
-                            >
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                  v{entry.version}
-                                </p>
-                                {isCurrent ? (
-                                  <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">
-                                    目前版本
+                            return (
+                              <button
+                                key={entry.version}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedReleaseVersion(entry.version);
+                                  setActiveReleaseCategory("all");
+                                }}
+                                className={cn(
+                                  "w-full rounded-[22px] border px-4 py-3 text-left transition-all",
+                                  isActive
+                                    ? "border-[var(--accent)]/20 bg-[var(--surface-elevated)] shadow-[0_18px_38px_-30px_var(--accent-glow)]"
+                                    : "border-[color:var(--surface-border)] bg-[var(--surface-subtle)]/70 hover:bg-[var(--surface-muted)]",
+                                )}
+                              >
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                    v{entry.version}
+                                  </p>
+                                  {isCurrent ? (
+                                    <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">
+                                      目前版本
+                                    </span>
+                                  ) : null}
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold",
+                                      entry.status === "preview"
+                                        ? "border-[#d4ebdc] bg-[#eef9f2] text-[#156c4f]"
+                                        : "border-[color:var(--surface-border)] bg-[var(--surface-elevated)] text-[var(--text-secondary)]",
+                                    )}
+                                  >
+                                    {getReleaseStatusLabel(entry.status)}
                                   </span>
-                                ) : null}
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold",
-                                    entry.status === "preview"
-                                      ? "border-[#d4ebdc] bg-[#eef9f2] text-[#156c4f]"
-                                      : "border-[color:var(--surface-border)] bg-[var(--surface-elevated)] text-[var(--text-secondary)]",
-                                  )}
-                                >
-                                  {getReleaseStatusLabel(entry.status)}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-primary)]">
-                                {entry.title}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
-                                <span className="inline-flex items-center gap-1.5">
-                                  <CalendarDays className="h-3.5 w-3.5" />
-                                  {formatReleaseDate(entry.publishedAt)}
-                                </span>
-                                <span>{countReleaseItems(entry)} 條更新</span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                                </div>
+                                <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-primary)]">
+                                  {entry.title}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    {formatReleaseDate(entry.publishedAt)}
+                                  </span>
+                                  <span>{countReleaseItems(entry)} 條更新</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
                     </div>
 
                     <div className="surface-subtle rounded-[28px] border border-[color:var(--surface-border)] p-4">

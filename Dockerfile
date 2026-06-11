@@ -1,6 +1,6 @@
 # 多階段構建
 # Stage 1: 構建前端
-ARG APP_VERSION=0.7.10
+ARG APP_VERSION=0.8.0
 ARG APP_GIT_SHA=dev
 ARG YTDLP_VERSION=2026.03.17
 
@@ -56,6 +56,11 @@ RUN set -eux; \
       *) echo "Unsupported architecture for yt-dlp binary: $arch" >&2; exit 1 ;; \
     esac; \
     curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${ytdlp_asset}" -o /usr/local/bin/yt-dlp; \
+    curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/SHA2-256SUMS" -o /tmp/yt-dlp-SHA2-256SUMS; \
+    expected_sha="$(awk -v asset="$ytdlp_asset" '$2 == asset || $2 == "*"asset {print $1}' /tmp/yt-dlp-SHA2-256SUMS)"; \
+    test -n "$expected_sha"; \
+    echo "${expected_sha}  /usr/local/bin/yt-dlp" | sha256sum -c -; \
+    rm /tmp/yt-dlp-SHA2-256SUMS; \
     chmod +x /usr/local/bin/yt-dlp; \
     yt-dlp --version
 

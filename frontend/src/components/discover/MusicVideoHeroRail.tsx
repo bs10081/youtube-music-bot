@@ -166,7 +166,7 @@ function FeaturedVideoCard({
           destination.onOpen ? "cursor-pointer" : "cursor-default",
         )}
       >
-        <div className="discover-rail-card-media relative h-full min-h-[240px] overflow-hidden bg-[var(--surface-subtle)] aspect-[16/9] sm:min-h-[280px] lg:min-h-[320px] xl:aspect-auto">
+        <div className="discover-rail-card-media relative h-full min-h-[220px] overflow-hidden bg-[var(--surface-subtle)] aspect-[16/9] sm:min-h-[280px] lg:min-h-[320px] xl:aspect-auto">
           <MediaArtwork
             item={item}
             preferredQuality={ThumbnailQuality.MAXRES}
@@ -194,7 +194,7 @@ function FeaturedVideoCard({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Featured Visual
               </p>
-              <h3 className="mt-2 text-[1.7rem] font-semibold leading-tight tracking-tight text-white lg:text-[2.15rem]">
+              <h3 className="mt-2 line-clamp-2 text-[1.35rem] font-semibold leading-tight tracking-tight text-white sm:text-[1.55rem] lg:text-[2.05rem]">
                 {item.title}
               </h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/82 lg:text-base">

@@ -147,7 +147,7 @@ export const MobileContent = () => {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col pb-[168px] lg:hidden">
+    <div className="flex h-full min-h-0 flex-col lg:hidden">
       <form onSubmit={handleSearch} className="shrink-0 px-4 py-4">
         <div className="surface-card relative rounded-[28px] border p-3">
           <Input
@@ -192,7 +192,7 @@ export const MobileContent = () => {
             <Spinner size="lg" />
           </div>
         ) : searchResults.length > 0 ? (
-          <div className="space-y-3 pb-4">
+          <div className="space-y-3 pb-6">
             {searchResults.map((result) => (
               <SearchResultItem
                 key={`${result.kind}:${result.id}`}

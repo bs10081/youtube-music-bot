@@ -13,7 +13,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           // 基礎樣式
-          "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200",
+          "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--app-radius-sm)] font-medium transition-all duration-200",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0",
           "disabled:pointer-events-none disabled:opacity-50",
           // 尺寸

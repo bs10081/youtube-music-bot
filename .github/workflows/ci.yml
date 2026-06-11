@@ -64,6 +64,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true  # 需要 GitHub Dependency graph 功能開啟;未開啟時不阻塞 merge
     permissions:
       contents: read
     steps:

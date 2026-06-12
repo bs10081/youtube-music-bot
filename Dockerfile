@@ -18,7 +18,8 @@ RUN npm ci
 WORKDIR /app
 COPY frontend/ ./frontend/
 ENV NODE_ENV=production
-RUN cd frontend && npm run build
+WORKDIR /app/frontend
+RUN npm run build
 
 # Stage 2: 構建後端
 FROM oven/bun:1 AS backend-builder
@@ -42,12 +43,13 @@ ARG YTDLP_VERSION
 WORKDIR /app
 
 # 安裝 mpv，並使用可控版本的 yt-dlp binary
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     mpv \
     ca-certificates \
     curl \
     && rm -rf /var/lib/apt/lists/*
-RUN set -eux; \
+RUN set -euxo pipefail; \
     arch="$(uname -m)"; \
     case "$arch" in \
       x86_64|amd64) ytdlp_asset="yt-dlp_linux" ;; \

@@ -356,6 +356,92 @@ describe("PlayerService - seek functionality", () => {
       expect(args).not.toContain("--softvol-max=200");
     });
 
+    test("should include the dynaudnorm audio filter by default", () => {
+      const fakeProcess = {} as ChildProcess;
+      const session = createSession(fakeProcess);
+      const player = playerService as unknown as {
+        buildMpvArgs: (
+          session: ReturnType<typeof createSession>,
+          options: { volume: number; startPaused: boolean },
+        ) => string[];
+      };
+
+      const args = player.buildMpvArgs(session, {
+        volume: 70,
+        startPaused: false,
+      });
+
+      const filterArg = args.find((arg) => arg.startsWith("--af="));
+      expect(filterArg).toBeDefined();
+      expect(filterArg).toContain("dynaudnorm");
+    });
+
+    test("should omit the audio filter when volume normalization is disabled", () => {
+      const fakeProcess = {} as ChildProcess;
+      const session = createSession(fakeProcess);
+      const player = playerService as unknown as {
+        buildMpvArgs: (
+          session: ReturnType<typeof createSession>,
+          options: { volume: number; startPaused: boolean },
+        ) => string[];
+      };
+
+      playerService.setVolumeNormalizationEnabled(false);
+
+      const args = player.buildMpvArgs(session, {
+        volume: 70,
+        startPaused: false,
+      });
+
+      expect(args.some((arg) => arg.startsWith("--af="))).toBe(false);
+    });
+
+    test("should toggle the audio filter on live sessions through IPC", () => {
+      const fakeProcess = {} as ChildProcess;
+      const activeSession = createSession(fakeProcess);
+      const standbySession = createSession(fakeProcess);
+      const ipcSpy = mock(
+        (_session: ReturnType<typeof createSession>, _command: unknown[]) =>
+          true,
+      );
+      const player = playerService as unknown as {
+        activeSession: ReturnType<typeof createSession> | null;
+        standbySession: ReturnType<typeof createSession> | null;
+        sendIpcCommand: (
+          session: ReturnType<typeof createSession>,
+          command: unknown[],
+        ) => boolean;
+      };
+
+      stubMethod(
+        player,
+        "sendIpcCommand",
+        ipcSpy as unknown as typeof player.sendIpcCommand,
+      );
+      player.activeSession = activeSession;
+      player.standbySession = standbySession;
+
+      playerService.setVolumeNormalizationEnabled(false);
+
+      expect(ipcSpy).toHaveBeenCalledTimes(2);
+      expect(ipcSpy.mock.calls[0]?.[1]).toEqual(["af", "clr", ""]);
+
+      playerService.setVolumeNormalizationEnabled(true);
+
+      expect(ipcSpy).toHaveBeenCalledTimes(4);
+      const enableCommand = ipcSpy.mock.calls[2]?.[1] as string[];
+      expect(enableCommand[0]).toBe("af");
+      expect(enableCommand[1]).toBe("set");
+      expect(enableCommand[2]).toContain("dynaudnorm");
+
+      // 相同狀態重複設定不應再送 IPC
+      playerService.setVolumeNormalizationEnabled(true);
+      expect(ipcSpy).toHaveBeenCalledTimes(4);
+
+      player.activeSession = null;
+      player.standbySession = null;
+    });
+
     test("should wait for a positive time-pos before confirming playback", () => {
       const fakeProcess = {
         kill: mock(() => true),

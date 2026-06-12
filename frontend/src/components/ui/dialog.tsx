@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Dialog Root
@@ -80,7 +81,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
               : [
                   "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
                   "w-full max-w-lg max-h-[85vh] overflow-hidden",
-                  "surface-card rounded-[28px]",
+                  "surface-card rounded-[var(--app-radius-xl)]",
                   "data-[state=open]:animate-in data-[state=closed]:animate-out",
                   "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
                   "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -163,21 +164,8 @@ const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
       >
         {children || (
           <span className="h-4 w-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-            <span className="sr-only">Close</span>
+            <X className="h-4 w-4" />
+            <span className="sr-only">關閉</span>
           </span>
         )}
       </BaseDialog.Close>

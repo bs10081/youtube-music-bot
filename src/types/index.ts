@@ -147,6 +147,7 @@ export interface DiscoverSection {
   id: string;
   title: string;
   subtitle?: string;
+  origin?: "personal" | "market";
   items: DiscoverItem[];
 }
 

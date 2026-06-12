@@ -1,5 +1,4 @@
 import { usePlayerStore } from "@/stores/playerStore";
-import { Badge } from "@/components/ui/badge";
 
 export const ConnectionStatus = () => {
   const connectionStatus = usePlayerStore((state) => state.connectionStatus);
@@ -30,9 +29,11 @@ export const ConnectionStatus = () => {
   return (
     <>
       {/* 桌面版：顯示完整狀態 */}
-      <div className="hidden lg:flex items-center gap-2 rounded-full border border-[color:var(--dynamic-ring)] bg-[var(--surface-subtle)] px-2.5 py-2 shadow-[0_14px_32px_-24px_var(--accent-glow)] transition-[border-color,background-color,box-shadow] duration-300">
-        <span className="text-sm text-[var(--text-secondary)]">狀態</span>
-        <Badge className={config.badgeClassName}>{config.text}</Badge>
+      <div className="hidden h-10 shrink-0 items-center gap-2 rounded-[var(--app-radius-md)] border border-[color:var(--surface-border)] bg-[var(--surface-subtle)] px-3 text-sm text-[var(--text-secondary)] shadow-[0_14px_32px_-26px_var(--accent-glow)] transition-[border-color,background-color,box-shadow] duration-300 lg:flex">
+        <span
+          className={`h-2.5 w-2.5 rounded-full transition-colors ${config.dotClassName}`}
+        />
+        <span className="font-medium">{config.text}</span>
       </div>
 
       {/* 手機版：僅顯示指示圓點 */}

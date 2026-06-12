@@ -20,15 +20,40 @@ type SocketData = {
 
 const app = new Hono();
 
+// CORS_ORIGIN:逗號分隔的允許來源白名單(例如 "https://music.example.com,http://192.168.1.10:3000")。
+// 未設定時退回開放 origin,但不可與 credentials 並用(W3C 規範禁止 "*" + credentials 組合)。
+function resolveCorsOrigins(): string[] | null {
+  const raw = process.env.CORS_ORIGIN?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const origins = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return origins.length > 0 ? origins : null;
+}
+
+const corsOrigins = resolveCorsOrigins();
+
 // 添加 CORS 支持（必須放在 serveStatic 之前）
 app.use(
   "/*",
-  cors({
-    origin: "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  }),
+  cors(
+    corsOrigins
+      ? {
+          origin: corsOrigins,
+          allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+          allowHeaders: ["Content-Type", "Authorization"],
+          credentials: true,
+        }
+      : {
+          origin: "*",
+          allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+          allowHeaders: ["Content-Type", "Authorization"],
+        },
+  ),
 );
 
 // 提供靜態檔案

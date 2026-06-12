@@ -61,11 +61,11 @@ export const NowPlaying = ({
         <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
           <Avatar
             size="lg"
-            className="h-44 w-44 rounded-[28px] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)]"
+            className="h-44 w-44 rounded-[var(--app-radius-xl)] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)]"
             fallback={<Sparkles className="h-14 w-14 text-[var(--text-muted)]" />}
           />
           <div className="space-y-3">
-            <span className="inline-flex rounded-full border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+            <span className="inline-flex rounded-[var(--app-radius-sm)] border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
               Preparing
             </span>
             <div>
@@ -87,11 +87,11 @@ export const NowPlaying = ({
           <div className="flex items-start gap-4">
             <Avatar
               size="lg"
-              className="h-28 w-28 shrink-0 rounded-[24px] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)]"
+              className="h-28 w-28 shrink-0 rounded-[var(--app-radius-lg)] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)]"
               fallback={<Sparkles className="h-10 w-10 text-[var(--text-muted)]" />}
             />
             <div className="min-w-0 space-y-3">
-              <span className="inline-flex rounded-full border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+              <span className="inline-flex rounded-[var(--app-radius-sm)] border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
                 Ready
               </span>
               <div className="space-y-2">
@@ -132,17 +132,17 @@ export const NowPlaying = ({
     return (
       <div className="mx-auto flex w-full max-w-[720px] flex-col items-center justify-center gap-7 text-center lg:gap-8">
         <div className="relative">
-          <div className="absolute inset-4 rounded-[28px] bg-[var(--accent-soft)] blur-3xl opacity-80" />
+          <div className="absolute inset-5 rounded-[var(--app-radius-xl)] bg-[var(--accent-soft)] blur-3xl opacity-45" />
           <Avatar
             size="lg"
-            className="relative h-40 w-40 rounded-[28px] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)] shadow-[0_22px_48px_-28px_rgba(15,23,42,0.28)] lg:h-48 lg:w-48"
+            className="relative h-40 w-40 rounded-[var(--app-radius-xl)] border border-[color:var(--dynamic-ring)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)] shadow-[0_22px_48px_-28px_rgba(15,23,42,0.28)] lg:h-48 lg:w-48"
             fallback={
               <Sparkles className="h-14 w-14 text-[var(--text-muted)] lg:h-16 lg:w-16" />
             }
           />
         </div>
         <div className="flex max-w-[640px] flex-col items-center gap-4">
-          <span className="inline-flex rounded-full border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+          <span className="inline-flex rounded-[var(--app-radius-sm)] border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
             Ready to play
           </span>
           <div className="space-y-3">
@@ -218,7 +218,7 @@ export const NowPlaying = ({
           isSidebarCompact && "space-y-3 text-left",
         )}
       >
-        <span className="inline-flex rounded-full border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-primary)]">
+        <span className="inline-flex rounded-[var(--app-radius-sm)] border border-[color:var(--dynamic-ring)] bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-primary)]">
           {isPlaying ? "Now Playing" : "Paused"}
         </span>
         <div className="min-w-0 space-y-2">

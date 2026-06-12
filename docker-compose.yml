@@ -21,6 +21,12 @@ services:
       - sync-state:/data
       # cookies 檔不會放進 image；需要時用唯讀 volume 掛載：
       # - ./secrets/youtube-cookies.txt:/run/secrets/youtube-cookies.txt:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     labels:
       - com.centurylinklabs.watchtower.enable=true
     # 可選：如果需要 PulseAudio（取消註解以下配置）

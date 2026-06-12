@@ -11,7 +11,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "desktop-segmented relative inline-flex h-16 items-center justify-center overflow-hidden rounded-[30px] p-1 text-[var(--text-muted)]",
+      "desktop-segmented relative inline-flex h-14 items-center justify-center overflow-hidden rounded-[var(--app-radius-lg)] p-1 text-[var(--text-muted)]",
       className,
     )}
     {...props}
@@ -26,7 +26,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Tab
     ref={ref}
     className={cn(
-      "relative z-10 inline-flex h-full flex-1 items-center justify-center whitespace-nowrap rounded-[24px] px-6 py-3 text-[1.05rem] font-semibold transition-all",
+      "relative z-10 inline-flex h-full flex-1 items-center justify-center whitespace-nowrap rounded-[var(--app-radius-md)] px-5 py-3 text-[1rem] font-semibold transition-all",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0",
       "disabled:pointer-events-none disabled:opacity-50",
       "data-[selected]:text-[var(--text-primary)] data-[selected]:drop-shadow-[0_1px_0_rgba(255,255,255,0.25)]",
@@ -44,7 +44,7 @@ const TabsIndicator = React.forwardRef<
   <TabsPrimitive.Indicator
     ref={ref}
     className={cn(
-      "desktop-segmented-indicator pointer-events-none absolute left-[var(--active-tab-left)] top-[var(--active-tab-top)] z-0 h-[var(--active-tab-height)] w-[var(--active-tab-width)] rounded-[24px] transition-[left,width,height,transform] duration-300",
+      "desktop-segmented-indicator pointer-events-none absolute left-[var(--active-tab-left)] top-[var(--active-tab-top)] z-0 h-[var(--active-tab-height)] w-[var(--active-tab-width)] rounded-[var(--app-radius-md)] transition-[left,width,height,transform] duration-300",
       className,
     )}
     {...props}

@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -6,6 +7,7 @@ import {
   useState,
   type ReactNode,
   type RefObject,
+  type WheelEvent,
 } from "react";
 import {
   AlertTriangle,
@@ -21,6 +23,7 @@ import {
   PlayCircle,
   Radio,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { OpenAlbumButton } from "@/components/album/OpenAlbumButton";
 import { OpenArtistButton } from "@/components/artist/OpenArtistButton";
@@ -78,6 +81,8 @@ interface DiscoverCardDestination {
   onOpen: (() => void) | null;
 }
 
+type DiscoverRailScrollState = "idle" | "active" | "settling";
+
 const MUSIC_VIDEO_SECTION_PATTERNS = [
   /latest\s+music\s+videos?/iu,
   /music\s+videos?/iu,
@@ -101,6 +106,8 @@ const DISCOVER_RAIL_FOCUS_MIN = 48;
 const DISCOVER_RAIL_FOCUS_MAX = 96;
 const DISCOVER_RAIL_FOCUS_RATIO = 0.12;
 const DISCOVER_RAIL_FEATURED_THRESHOLD = 0.58;
+const DISCOVER_RAIL_SETTLE_DELAY_MS = 700;
+const DISCOVER_RAIL_SETTLE_DURATION_MS = 320;
 
 const collectionPreviewCache = new Map<string, DiscoverCollectionPreview>();
 const collectionPreviewInFlight = new Map<
@@ -409,6 +416,59 @@ function InfoPill({
   );
 }
 
+function canScrollHorizontally(viewport: HTMLDivElement): boolean {
+  return viewport.scrollWidth - viewport.clientWidth > 2;
+}
+
+function freezeDiscoverRailLayout(viewport: HTMLDivElement) {
+  viewport.querySelectorAll<HTMLElement>(".discover-rail-item").forEach((node) => {
+    const currentEmphasis =
+      node.style.getPropertyValue("--discover-rail-emphasis") || "0";
+
+    node.style.setProperty("--discover-rail-frozen-emphasis", currentEmphasis);
+  });
+}
+
+function resolveNearestRailScrollLeft(viewport: HTMLDivElement): number | null {
+  const content = viewport.firstElementChild;
+  if (!content) {
+    return null;
+  }
+
+  const items = Array.from(content.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement,
+  );
+  if (items.length === 0) {
+    return null;
+  }
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const nearestItem = items.reduce<HTMLElement | null>((nearest, item) => {
+    if (!nearest) {
+      return item;
+    }
+
+    const nearestDistance = Math.abs(
+      nearest.getBoundingClientRect().left - viewportRect.left,
+    );
+    const itemDistance = Math.abs(item.getBoundingClientRect().left - viewportRect.left);
+
+    return itemDistance < nearestDistance ? item : nearest;
+  }, null);
+
+  if (!nearestItem) {
+    return null;
+  }
+
+  const targetLeft =
+    viewport.scrollLeft +
+    nearestItem.getBoundingClientRect().left -
+    viewportRect.left;
+  const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+
+  return Math.max(0, Math.min(targetLeft, maxScrollLeft));
+}
+
 function DiscoverHorizontalRail({
   children,
   className,
@@ -422,18 +482,160 @@ function DiscoverHorizontalRail({
   contentClassName?: string;
   viewportRef?: RefObject<HTMLDivElement | null>;
 }) {
+  const localViewportRef = useRef<HTMLDivElement | null>(null);
+  const [scrollState, setScrollState] = useState<DiscoverRailScrollState>("idle");
+  const scrollStateRef = useRef<DiscoverRailScrollState>("idle");
+  const settleTimerRef = useRef<number | null>(null);
+  const settleFinishTimerRef = useRef<number | null>(null);
+
+  const setNextScrollState = (nextState: DiscoverRailScrollState) => {
+    if (scrollStateRef.current === nextState) {
+      return;
+    }
+
+    scrollStateRef.current = nextState;
+    setScrollState(nextState);
+  };
+
+  const clearSettleTimers = () => {
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+
+    if (settleFinishTimerRef.current !== null) {
+      window.clearTimeout(settleFinishTimerRef.current);
+      settleFinishTimerRef.current = null;
+    }
+  };
+
+  const beginInteraction = () => {
+    const viewport = localViewportRef.current;
+    if (!viewport || !canScrollHorizontally(viewport)) {
+      return;
+    }
+
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+
+    if (settleFinishTimerRef.current !== null) {
+      window.clearTimeout(settleFinishTimerRef.current);
+      settleFinishTimerRef.current = null;
+    }
+
+    if (scrollStateRef.current !== "active") {
+      freezeDiscoverRailLayout(viewport);
+    }
+
+    setNextScrollState("active");
+  };
+
+  const settleToNearestItem = () => {
+    const viewport = localViewportRef.current;
+    if (!viewport || !canScrollHorizontally(viewport)) {
+      setNextScrollState("idle");
+      return;
+    }
+
+    freezeDiscoverRailLayout(viewport);
+    setNextScrollState("settling");
+
+    const nearestScrollLeft = resolveNearestRailScrollLeft(viewport);
+    if (
+      nearestScrollLeft !== null &&
+      Math.abs(viewport.scrollLeft - nearestScrollLeft) > 1
+    ) {
+      viewport.scrollTo({
+        left: nearestScrollLeft,
+        behavior: "smooth",
+      });
+    }
+
+    settleFinishTimerRef.current = window.setTimeout(() => {
+      settleFinishTimerRef.current = null;
+      setNextScrollState("idle");
+    }, DISCOVER_RAIL_SETTLE_DURATION_MS);
+  };
+
+  const scheduleDeferredSettle = () => {
+    const viewport = localViewportRef.current;
+    if (!viewport || !canScrollHorizontally(viewport)) {
+      return;
+    }
+
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+    }
+
+    settleTimerRef.current = window.setTimeout(() => {
+      settleTimerRef.current = null;
+      settleToNearestItem();
+    }, DISCOVER_RAIL_SETTLE_DELAY_MS);
+  };
+
+  const handleScroll = () => {
+    if (scrollStateRef.current === "settling") {
+      return;
+    }
+
+    beginInteraction();
+    scheduleDeferredSettle();
+  };
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (Math.abs(event.deltaX) < Math.abs(event.deltaY) && !event.shiftKey) {
+      return;
+    }
+
+    beginInteraction();
+    scheduleDeferredSettle();
+  };
+
+  const assignViewportRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      localViewportRef.current = node;
+
+      if (viewportRef) {
+        (viewportRef as { current: HTMLDivElement | null }).current = node;
+      }
+    },
+    [viewportRef],
+  );
+
+  useEffect(
+    () => () => {
+      clearSettleTimers();
+    },
+    [],
+  );
+
   return (
-    <div className={cn("-mx-3 overflow-visible px-3 pt-5 pb-10", className)}>
+    <div
+      className={cn(
+        "discover-horizontal-rail -mx-3 overflow-visible px-3 pt-5 pb-10",
+        className,
+      )}
+      data-scroll-state={scrollState}
+    >
       <div
-        ref={viewportRef}
+        ref={assignViewportRef}
+        onPointerDown={beginInteraction}
+        onPointerUp={scheduleDeferredSettle}
+        onPointerCancel={scheduleDeferredSettle}
+        onPointerLeave={scheduleDeferredSettle}
+        onTouchEnd={scheduleDeferredSettle}
+        onWheel={handleWheel}
+        onScroll={handleScroll}
         className={cn(
-          "snap-x snap-proximity overflow-x-auto overflow-y-hidden pt-2 pb-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          "discover-horizontal-rail-viewport snap-x snap-proximity overflow-x-auto overflow-y-hidden pt-2 pb-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
           viewportClassName,
         )}
       >
         <div
           className={cn(
-            "flex min-w-full items-stretch gap-4 px-3",
+            "discover-horizontal-rail-content flex min-w-full items-stretch gap-4 px-3",
             contentClassName,
           )}
         >
@@ -1184,6 +1386,7 @@ function DiscoverSectionRail({
     id: string;
     title: string;
     subtitle?: string;
+    origin?: "personal" | "market";
     items: DiscoverItem[];
   };
   onQueueTrack: (track: Track) => Promise<void>;
@@ -1228,7 +1431,9 @@ function DiscoverSectionRail({
     <section className="space-y-4">
       <SectionHeading
         icon={
-          hasCollectionItems ? (
+          section.origin === "personal" ? (
+            <Sparkles className="h-4 w-4" />
+          ) : hasCollectionItems ? (
             <Layers3 className="h-4 w-4" />
           ) : (
             <Music2 className="h-4 w-4" />
@@ -1866,7 +2071,7 @@ export const DiscoverView = ({ isMobile = false }: DiscoverViewProps) => {
     >
       <ScrollArea
         className={`min-h-0 flex-1 ${
-          isMobile ? "px-4 pb-[184px] pt-4" : "desktop-scrollbar p-5 xl:p-6"
+          isMobile ? "px-4 pb-6 pt-4" : "desktop-scrollbar p-5 xl:p-6"
         }`}
         maxHeight="none"
       >
@@ -1915,24 +2120,26 @@ export const DiscoverView = ({ isMobile = false }: DiscoverViewProps) => {
             </div>
           </Card>
 
-          <section className="space-y-4">
-            <SectionHeading
-              icon={<Music2 className="h-4 w-4" />}
-              title="本站熱門點播"
-              subtitle="用冠軍焦點卡搭配連續名次列，快速看到站內最常被主動加入的歌曲。"
-            />
-            <TopRequestedRail
-              entries={topRequested}
-              onQueueTrack={handleQueueTrack}
-              onCreateMix={handleCreateMix}
-              onToggleFavorite={handleToggleFavorite}
-              pendingTrackId={pendingTrackId}
-              creatingMixId={creatingMixId}
-              favoriteTrackIds={favoriteTrackIds}
-              libraryReady={libraryReady}
-              isMobile={isMobile}
-            />
-          </section>
+          {topRequested.length > 0 ? (
+            <section className="space-y-4">
+              <SectionHeading
+                icon={<Music2 className="h-4 w-4" />}
+                title="本站熱門點播"
+                subtitle="用冠軍焦點卡搭配連續名次列，快速看到站內最常被主動加入的歌曲。"
+              />
+              <TopRequestedRail
+                entries={topRequested}
+                onQueueTrack={handleQueueTrack}
+                onCreateMix={handleCreateMix}
+                onToggleFavorite={handleToggleFavorite}
+                pendingTrackId={pendingTrackId}
+                creatingMixId={creatingMixId}
+                favoriteTrackIds={favoriteTrackIds}
+                libraryReady={libraryReady}
+                isMobile={isMobile}
+              />
+            </section>
+          ) : null}
 
           <section className="space-y-4">
             <SectionHeading

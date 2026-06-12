@@ -861,6 +861,23 @@ api.delete("/queue/:index", (c) => {
 });
 
 /**
+ * GET /api/health
+ * 健康檢查端點,供 docker-compose healthcheck 與監控使用
+ */
+api.get("/health", (c) => {
+  const metadata = getAppMetadata();
+  return c.json<ApiResponse>({
+    success: true,
+    data: {
+      status: "ok",
+      version: metadata.appVersion,
+      gitSha: metadata.gitSha,
+      uptimeSeconds: Math.round(process.uptime()),
+    },
+  });
+});
+
+/**
  * GET /api/system/info
  * 取得系統版本資訊
  */

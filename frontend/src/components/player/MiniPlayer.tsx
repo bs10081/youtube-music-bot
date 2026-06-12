@@ -6,6 +6,7 @@ import { usePlayerStore } from "@/stores/playerStore";
 import { useAppUiStore } from "@/stores/appUiStore";
 import { api } from "@/services/api";
 import { RadioToggleButton } from "./RadioToggleButton";
+import { Music2, Pause, Play, SkipForward } from "lucide-react";
 
 export const MiniPlayer = () => {
   const currentTrack = usePlayerStore(
@@ -77,10 +78,10 @@ export const MiniPlayer = () => {
 
   return (
     <div
-      className="fixed bottom-[104px] left-0 right-0 z-50 px-3 lg:hidden"
+      className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-3 lg:hidden"
     >
       <div
-        className="surface-card overflow-hidden rounded-[28px] border bg-[var(--surface-elevated)]/95 transition-colors"
+        className="surface-card overflow-hidden rounded-[var(--app-radius-xl)] border bg-[var(--surface-elevated)]/95 transition-colors"
         onClick={() => {
           if (currentTrack) {
             setMobileNowPlayingView("player");
@@ -110,7 +111,7 @@ export const MiniPlayer = () => {
                 src={currentTrack.thumbnail}
                 alt={currentTrack.title}
                 size="sm"
-                className="rounded-[16px]"
+                className="rounded-[var(--app-radius-md)]"
               />
 
               <div className="min-w-0 flex-1">
@@ -150,21 +151,9 @@ export const MiniPlayer = () => {
                   {isLoading || isLoadingTrack ? (
                     <Spinner size="sm" />
                   ) : isPlaying ? (
-                    <svg
-                      className="h-5 w-5"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                    </svg>
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <svg
-                      className="h-5 w-5"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
 
@@ -176,26 +165,14 @@ export const MiniPlayer = () => {
                   title="下一首"
                   className="h-9 w-9 rounded-full px-0"
                 >
-                  <svg
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M6 4l10 8-10 8V4zm12 0v16h2V4h-2z" />
-                  </svg>
+                  <SkipForward className="h-5 w-5" />
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex flex-1 items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-[var(--surface-muted)]">
-                <svg
-                  className="h-6 w-6 text-[var(--text-muted)]"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                </svg>
+              <div className="flex h-10 w-10 items-center justify-center rounded-[var(--app-radius-md)] bg-[var(--surface-muted)]">
+                <Music2 className="h-5 w-5 text-[var(--text-muted)]" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[var(--text-secondary)]">

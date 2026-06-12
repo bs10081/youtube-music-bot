@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +17,7 @@ import { getCurrentRequester, useLibraryStore } from "@/stores/libraryStore";
 import { api } from "@/services/api";
 import { SearchResultItem } from "./SearchResultItem";
 import type { CollectionSearchResult, Track } from "@/types";
+import { ArrowLeft, Search } from "lucide-react";
 
 const EMPTY_FAVORITES: Array<{ videoId: string }> = [];
 
@@ -63,8 +70,7 @@ export const MobileSearchPage = () => {
     setSearchResults([]);
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitSearch = async () => {
     if (!query.trim()) return;
 
     setIsSearching(true);
@@ -83,6 +89,20 @@ export const MobileSearchPage = () => {
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    void submitSearch();
+  };
+
+  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) {
+      return;
+    }
+
+    e.preventDefault();
+    void submitSearch();
   };
 
   const handleAddToQueue = async (track: Track) => {
@@ -181,32 +201,20 @@ export const MobileSearchPage = () => {
 
   const content = (
     <div
-      className={`fixed inset-0 z-50 bg-white dark:bg-gray-950 ${
+      className={`fixed inset-0 z-50 bg-[var(--page-bottom)] text-[var(--text-primary)] ${
         isMobileSearchOpen ? "mobile-search-enter" : "mobile-search-exit"
       }`}
     >
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+      <div className="sticky top-0 z-10 border-b border-[color:var(--surface-border)] bg-[var(--surface-overlay)] backdrop-blur-xl">
         <div className="flex items-center gap-4 px-4 py-3">
           <button
             onClick={handleClose}
-            className="-ml-2 rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="-ml-2 rounded-[var(--app-radius-sm)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
             aria-label="返回"
           >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
             搜尋音樂
           </h1>
         </div>
@@ -219,29 +227,18 @@ export const MobileSearchPage = () => {
               placeholder="搜尋歌曲、藝人或貼上 YouTube 連結..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               disabled={isSearching}
-              className="h-12 w-full rounded-xl border-gray-200/64 bg-gray-100 pl-12 pr-4 text-base focus:ring-2 focus:ring-gray-900 dark:border-gray-700/64 dark:bg-gray-800 dark:focus:ring-gray-50"
+              className="h-12 w-full rounded-[var(--app-radius-md)] border-[color:var(--surface-border)] bg-[var(--surface-subtle)] pl-12 pr-4 text-base"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+              <Search className="h-5 w-5" />
             </div>
             {query.trim() && (
               <Button
                 type="submit"
                 disabled={isSearching}
-                className="absolute right-2 top-1/2 h-8 -translate-y-1/2 rounded-lg bg-gradient-to-r from-gray-900 to-gray-700 px-4 text-sm text-white transition-transform duration-200 hover:translate-y-0.5 dark:from-gray-50 dark:to-gray-200 dark:text-gray-900"
+                className="absolute right-2 top-1/2 h-8 -translate-y-1/2 rounded-[var(--app-radius-sm)] px-4 text-sm"
               >
                 {isSearching ? <Spinner size="sm" /> : "搜尋"}
               </Button>

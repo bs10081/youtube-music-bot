@@ -49,20 +49,30 @@
 }
 
 :root {
+  --app-radius-xs: 0.5rem;
+  --app-radius-sm: 0.75rem;
+  --app-radius-md: 1rem;
+  --app-radius-lg: 1.25rem;
+  --app-radius-xl: 1.5rem;
+  --app-space-edge: clamp(1rem, 2.4vw, 1.5rem);
+  --mobile-bottom-stack: calc(11.75rem + env(safe-area-inset-bottom));
   --page-top: #fbfdff;
   --page-bottom: #edf2f8;
   --page-accent: rgba(77, 114, 213, 0.12);
   --surface-elevated: rgba(255, 255, 255, 0.9);
   --surface-muted: rgba(246, 249, 252, 0.8);
   --surface-subtle: rgba(255, 255, 255, 0.72);
+  --surface-overlay: rgba(255, 255, 255, 0.86);
   --surface-border: rgba(148, 163, 184, 0.22);
   --surface-shadow:
-    0 24px 40px -32px rgba(15, 23, 42, 0.18),
-    0 10px 20px -18px rgba(15, 23, 42, 0.1);
-  --surface-shadow-strong: 0 36px 80px -40px rgba(15, 23, 42, 0.32);
+    0 18px 38px -32px rgba(15, 23, 42, 0.2),
+    0 8px 18px -18px rgba(15, 23, 42, 0.12);
+  --surface-shadow-strong:
+    0 28px 72px -46px rgba(15, 23, 42, 0.34),
+    0 14px 34px -30px rgba(15, 23, 42, 0.16);
   --text-primary: #111827;
   --text-secondary: #5b6678;
-  --text-muted: #8a93a5;
+  --text-muted: #6f7a8d;
   --accent: #1f3f92;
   --accent-contrast: #f8fbff;
   --accent-soft: rgba(54, 84, 176, 0.14);
@@ -82,12 +92,20 @@
 }
 
 .dark {
+  --app-radius-xs: 0.5rem;
+  --app-radius-sm: 0.75rem;
+  --app-radius-md: 1rem;
+  --app-radius-lg: 1.25rem;
+  --app-radius-xl: 1.5rem;
+  --app-space-edge: clamp(1rem, 2.4vw, 1.5rem);
+  --mobile-bottom-stack: calc(11.75rem + env(safe-area-inset-bottom));
   --page-top: #0d1320;
   --page-bottom: #070b12;
   --page-accent: rgba(86, 131, 255, 0.18);
   --surface-elevated: rgba(16, 22, 34, 0.92);
   --surface-muted: rgba(20, 27, 40, 0.86);
   --surface-subtle: rgba(30, 38, 56, 0.74);
+  --surface-overlay: rgba(12, 18, 29, 0.9);
   --surface-border: rgba(132, 148, 182, 0.18);
   --surface-shadow:
     0 28px 46px -34px rgba(0, 0, 0, 0.48),
@@ -119,8 +137,8 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
   background:
-    radial-gradient(circle at top left, var(--page-accent), transparent 36%),
-    radial-gradient(circle at bottom right, var(--page-accent), transparent 28%),
+    radial-gradient(circle at 16% 10%, var(--page-accent), transparent 30%),
+    radial-gradient(circle at 78% 86%, var(--page-accent), transparent 26%),
     linear-gradient(180deg, var(--page-top) 0%, var(--page-bottom) 100%);
   color: var(--text-primary);
   transition: color 220ms ease;
@@ -160,7 +178,7 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 28%, rgba(255, 255, 255, 0.1) 100%),
     radial-gradient(circle at top center, rgba(255, 255, 255, 0.18), transparent 34%);
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.38;
 }
 
 .artwork-crossfade-previous,
@@ -244,7 +262,7 @@ body {
   background: var(--surface-elevated);
   border-color: var(--surface-border);
   box-shadow: var(--surface-shadow);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(16px);
   background-clip: padding-box;
   transition:
     background 360ms ease,
@@ -254,10 +272,9 @@ body {
 
 .surface-card-strong {
   background:
-    radial-gradient(circle at top center, var(--player-tint), transparent 44%),
-    radial-gradient(circle at bottom right, var(--accent-soft), transparent 40%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, white 8%) 0%, var(--surface-elevated) 100%);
-  border-color: color-mix(in srgb, var(--surface-border) 76%, var(--dynamic-ring) 24%);
+    radial-gradient(circle at 18% 0%, var(--player-tint), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 94%, white 6%) 0%, var(--surface-elevated) 100%);
+  border-color: color-mix(in srgb, var(--surface-border) 82%, var(--dynamic-ring) 18%);
   box-shadow: var(--surface-shadow-strong);
   background-clip: padding-box;
   transition:
@@ -266,8 +283,21 @@ body {
     box-shadow 360ms ease;
 }
 
+.discover-horizontal-rail-viewport {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: auto;
+}
+
+.discover-horizontal-rail[data-scroll-state="active"] .discover-horizontal-rail-viewport,
+.discover-horizontal-rail[data-scroll-state="settling"] .discover-horizontal-rail-viewport {
+  scroll-snap-type: none;
+}
+
 .discover-rail-item {
   --discover-rail-emphasis: 0;
+  --discover-rail-layout-emphasis: var(--discover-rail-emphasis);
+  --discover-rail-visual-emphasis: var(--discover-rail-emphasis);
   --discover-rail-base-rem: 19.25;
   --discover-rail-grow-rem: 6.25;
   --discover-rail-max-size: 82vw;
@@ -280,7 +310,7 @@ body {
       calc(
         (
             var(--discover-rail-base-rem) +
-              (var(--discover-rail-grow-rem) * var(--discover-rail-emphasis))
+              (var(--discover-rail-grow-rem) * var(--discover-rail-layout-emphasis))
           ) * 1rem
       )
     );
@@ -290,18 +320,27 @@ body {
       calc(
         (
             var(--discover-rail-base-rem) +
-              (var(--discover-rail-grow-rem) * var(--discover-rail-emphasis))
+              (var(--discover-rail-grow-rem) * var(--discover-rail-layout-emphasis))
           ) * 1rem
       )
     );
-  padding-bottom: calc(2.25rem + (var(--discover-rail-emphasis) * 0.625rem));
-  margin-inline-end: calc(0.125rem + (var(--discover-rail-emphasis) * 1rem));
+  padding-bottom: calc(2.25rem + (var(--discover-rail-layout-emphasis) * 0.625rem));
+  margin-inline-end: calc(0.125rem + (var(--discover-rail-layout-emphasis) * 1rem));
   z-index: 0;
   transition:
     flex-basis 260ms cubic-bezier(0.22, 1, 0.36, 1),
     width 260ms cubic-bezier(0.22, 1, 0.36, 1),
     margin-inline-end 260ms cubic-bezier(0.22, 1, 0.36, 1),
     padding-bottom 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.discover-horizontal-rail[data-scroll-state="active"] .discover-rail-item,
+.discover-horizontal-rail[data-scroll-state="settling"] .discover-rail-item {
+  --discover-rail-layout-emphasis: var(
+    --discover-rail-frozen-emphasis,
+    var(--discover-rail-emphasis)
+  );
+  transition: none;
 }
 
 .discover-rail-item-track {
@@ -318,8 +357,8 @@ body {
 
 .discover-rail-card {
   transform:
-    translate3d(0, calc(var(--discover-rail-emphasis) * -12px), 0)
-    scale(calc(1 + (var(--discover-rail-emphasis) * 0.052)));
+    translate3d(0, calc(var(--discover-rail-visual-emphasis) * -12px), 0)
+    scale(calc(1 + (var(--discover-rail-visual-emphasis) * 0.052)));
   transform-origin: left top;
   will-change: transform, box-shadow, border-color, background;
   backface-visibility: hidden;
@@ -329,6 +368,22 @@ body {
     background 360ms ease,
     border-color 320ms ease,
     box-shadow 360ms ease;
+}
+
+.discover-horizontal-rail[data-scroll-state="active"] .discover-rail-card {
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 240ms ease,
+    border-color 220ms ease,
+    box-shadow 240ms ease;
+}
+
+.discover-horizontal-rail[data-scroll-state="settling"] .discover-rail-card {
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 280ms ease,
+    border-color 260ms ease,
+    box-shadow 280ms ease;
 }
 
 .discover-rail-item > .discover-rail-card {
@@ -459,9 +514,8 @@ body {
   inset: 0;
   border-radius: inherit;
   background:
-    radial-gradient(circle at 18% 18%, var(--player-tint), transparent 34%),
-    radial-gradient(circle at top center, var(--accent-glow), transparent 36%),
-    radial-gradient(circle at 82% 88%, var(--accent-soft), transparent 28%),
+    radial-gradient(circle at 16% 18%, var(--player-tint), transparent 30%),
+    radial-gradient(circle at 82% 86%, var(--accent-soft), transparent 24%),
     linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
   pointer-events: none;
   transition: background 380ms ease;

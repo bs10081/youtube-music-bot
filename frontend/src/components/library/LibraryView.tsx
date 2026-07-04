@@ -991,7 +991,7 @@ const TrackBrowser = ({
             <div
               key={`${track.videoId}-${track.title}`}
               className={cn(
-                "surface-card gap-4 rounded-[24px] border",
+                "surface-card cv-auto gap-4 rounded-[24px] border",
                 isMobile
                   ? "flex flex-col px-4 py-4"
                   : "grid items-center px-4 py-4 md:grid-cols-[minmax(0,1fr)_132px]",

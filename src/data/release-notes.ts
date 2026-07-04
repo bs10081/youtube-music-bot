@@ -1,6 +1,36 @@
 import type { ReleaseNotesEntry } from "../types/index.ts";
 
 const fallbackReleaseNotesByVersion: Record<string, ReleaseNotesEntry> = {
+  "0.9.1": {
+    version: "0.9.1",
+    title: "跨曲響度正規化與前端記憶體優化",
+    publishedAt: "2026-07-05",
+    status: "preview",
+    summary:
+      "音量平衡改用 EBU R128 loudnorm 濾鏡,歌曲之間的響度真正拉齊;前端修正多處無上限快取與列表渲染成本,長時間使用不再累積記憶體。",
+    sections: [
+      {
+        category: "changed",
+        title: "音量平衡改用 loudnorm",
+        description: "從動態範圍正規化改為以 -14 LUFS 為目標的響度正規化。",
+        items: [
+          "dynaudnorm 只會放大安靜段落、壓不下響度戰爭曲目,改用 loudnorm(EBU R128)後偏 loud 的歌會被壓下來、安靜的歌會被拉上去,跨曲聽感一致。",
+          "實測:響度差 19.1 dB 的兩首歌(-3.2 與 -22.3 LUFS)套用後收斂到 0.3 dB 以內。",
+        ],
+      },
+      {
+        category: "fixed",
+        title: "前端記憶體優化",
+        description: "移除長時間使用下的記憶體單調增長路徑。",
+        items: [
+          "Discover 合輯預覽快取加上 30 筆 FIFO 上限,不再隨瀏覽無限累積。",
+          "媒體庫刪除紀錄(墓碑)加上 90 天 TTL 與 500 筆上限,同步合併時先套用刪除、持久化前才修剪。",
+          "專輯圖色彩擷取加上 15 秒載入逾時,網路停滯不再累積孤兒 Image 物件。",
+          "媒體庫、佇列與 Discover 卡片啟用 content-visibility,視窗外的列不再佔用 layout/paint 資源;列表縮圖改為 lazy 載入。",
+        ],
+      },
+    ],
+  },
   "0.8.0": {
     version: "0.8.0",
     title: "動態音量平衡與 Discover 個人化",

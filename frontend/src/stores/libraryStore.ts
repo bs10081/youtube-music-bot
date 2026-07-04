@@ -21,6 +21,7 @@ import {
 import {
   mergeLibraryPayload,
   mergePairedDevices,
+  pruneTombstones,
 } from "@/utils/librarySync";
 import { getCurrentRequester } from "@/utils/requester";
 import { reorderItems } from "@/utils/reorder";
@@ -110,6 +111,16 @@ function upsertPlaylist(playlists: Playlist[], playlist: Playlist): Playlist[] {
   return playlists.map((item) => (item.id === playlist.id ? playlist : item));
 }
 
+// pruneTombstones 以「最新在前」做上限裁切,upsert 路徑是 append 順序,先排序再修剪。
+function pruneUpsertedTombstones<T extends { removedAt: string }>(
+  items: T[],
+): T[] {
+  return pruneTombstones(
+    [...items].sort((left, right) => right.removedAt.localeCompare(left.removedAt)),
+    (item) => item.removedAt,
+  );
+}
+
 function upsertRemovedFavorite(
   items: LibrarySnapshot["removedFavorites"],
   videoId: string,
@@ -119,7 +130,7 @@ function upsertRemovedFavorite(
   const existingIndex = current.findIndex((item) => item.videoId === videoId);
 
   if (existingIndex === -1) {
-    return [...current, { videoId, removedAt }];
+    return pruneUpsertedTombstones([...current, { videoId, removedAt }]);
   }
 
   return current.map((item, index) =>
@@ -141,7 +152,7 @@ function upsertDeletedPlaylist(
   const existingIndex = current.findIndex((item) => item.id === playlistId);
 
   if (existingIndex === -1) {
-    return [...current, { id: playlistId, removedAt }];
+    return pruneUpsertedTombstones([...current, { id: playlistId, removedAt }]);
   }
 
   return current.map((item, index) =>
@@ -163,7 +174,7 @@ function upsertDeletedSavedMix(
   const existingIndex = current.findIndex((item) => item.id === mixId);
 
   if (existingIndex === -1) {
-    return [...current, { id: mixId, removedAt }];
+    return pruneUpsertedTombstones([...current, { id: mixId, removedAt }]);
   }
 
   return current.map((item, index) =>

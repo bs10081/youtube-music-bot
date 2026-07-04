@@ -66,7 +66,7 @@ export const QueueItem = ({
       onTouchEnd={mobile ? onTouchEnd : undefined}
       onTouchCancel={mobile ? onTouchCancel : undefined}
       className={cn(
-        "group relative border transition-all",
+        "group cv-auto relative border transition-all",
         mobile ? "rounded-[24px] px-3 py-3" : "rounded-[22px] p-3",
         isNext
           ? "border-[color:var(--surface-border)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_84%,var(--accent-soft)_16%)]"

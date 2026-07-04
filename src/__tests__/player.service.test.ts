@@ -356,7 +356,7 @@ describe("PlayerService - seek functionality", () => {
       expect(args).not.toContain("--softvol-max=200");
     });
 
-    test("should include the dynaudnorm audio filter by default", () => {
+    test("should include the loudnorm audio filter by default", () => {
       const fakeProcess = {} as ChildProcess;
       const session = createSession(fakeProcess);
       const player = playerService as unknown as {
@@ -373,7 +373,8 @@ describe("PlayerService - seek functionality", () => {
 
       const filterArg = args.find((arg) => arg.startsWith("--af="));
       expect(filterArg).toBeDefined();
-      expect(filterArg).toContain("dynaudnorm");
+      expect(filterArg).toContain("loudnorm=I=-14:TP=-1.5:LRA=11");
+      expect(filterArg).toContain("aresample=48000");
     });
 
     test("should omit the audio filter when volume normalization is disabled", () => {
@@ -432,7 +433,8 @@ describe("PlayerService - seek functionality", () => {
       const enableCommand = ipcSpy.mock.calls[2]?.[1] as string[];
       expect(enableCommand[0]).toBe("af");
       expect(enableCommand[1]).toBe("set");
-      expect(enableCommand[2]).toContain("dynaudnorm");
+      expect(enableCommand[2]).toContain("loudnorm=I=-14:TP=-1.5:LRA=11");
+      expect(enableCommand[2]).toContain("aresample=48000");
 
       // 相同狀態重複設定不應再送 IPC
       playerService.setVolumeNormalizationEnabled(true);

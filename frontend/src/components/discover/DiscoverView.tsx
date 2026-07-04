@@ -36,6 +36,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { api } from "@/services/api";
+import { setCappedCacheValue } from "@/utils/cappedCache";
 import { useAlbumDialogStore } from "@/stores/albumDialogStore";
 import { useArtistDialogStore } from "@/stores/artistDialogStore";
 import { useDiscoverStore } from "@/stores/discoverStore";
@@ -109,6 +110,8 @@ const DISCOVER_RAIL_FEATURED_THRESHOLD = 0.58;
 const DISCOVER_RAIL_SETTLE_DELAY_MS = 700;
 const DISCOVER_RAIL_SETTLE_DURATION_MS = 320;
 
+// 上限快取:長時間瀏覽 Discover 時避免每個看過的合輯預覽永久累積在記憶體。
+const COLLECTION_PREVIEW_CACHE_LIMIT = 30;
 const collectionPreviewCache = new Map<string, DiscoverCollectionPreview>();
 const collectionPreviewInFlight = new Map<
   string,
@@ -265,7 +268,12 @@ async function loadCollectionPreview(
       ),
     };
 
-    collectionPreviewCache.set(cacheKey, preview);
+    setCappedCacheValue(
+      collectionPreviewCache,
+      cacheKey,
+      preview,
+      COLLECTION_PREVIEW_CACHE_LIMIT,
+    );
     return preview;
   })().finally(() => {
     collectionPreviewInFlight.delete(cacheKey);
@@ -1258,7 +1266,7 @@ function CollectionDiscoverCard({
   return (
     <Card
       className={cn(
-        "discover-rail-card flex w-[min(90vw,24rem)] shrink-0 flex-col overflow-hidden rounded-[30px] border p-0",
+        "discover-rail-card cv-auto-card flex w-[min(90vw,24rem)] shrink-0 flex-col overflow-hidden rounded-[30px] border p-0",
       )}
     >
       <button

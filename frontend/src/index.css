@@ -632,3 +632,15 @@ body {
     opacity: 0;
   }
 }
+
+/* 長列表渲染成本控制:視窗外的列不做 layout/paint,離屏專輯圖的解碼記憶體可被回收。
+   contain-intrinsic-size 提供離屏時的預估高度,避免捲動條跳動。 */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 76px;
+}
+
+.cv-auto-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}

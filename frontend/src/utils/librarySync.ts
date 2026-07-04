@@ -100,6 +100,27 @@ function sortPlaylists(items: Playlist[]): Playlist[] {
   );
 }
 
+// 墓碑(刪除紀錄)修剪:超過 TTL 或超過上限的最舊項目會被丟棄,
+// 否則長期使用下 removedFavorites/deletedPlaylists/deletedSavedMixes
+// 會無上限成長並持久化到 IndexedDB。
+// trade-off:離線超過 TTL 的裝置重新同步時,可能收不到更早的刪除而讓項目復活。
+const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_TOMBSTONE_ENTRIES = 500;
+
+export function pruneTombstones<T>(
+  items: T[],
+  getRemovedAt: (item: T) => string,
+): T[] {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+
+  return items
+    .filter((item) => {
+      const removedAt = new Date(getRemovedAt(item)).getTime();
+      return Number.isNaN(removedAt) || removedAt >= cutoff;
+    })
+    .slice(0, MAX_TOMBSTONE_ENTRIES);
+}
+
 function sortRemovedFavorites(items: RemovedFavorite[]): RemovedFavorite[] {
   return [...items].sort((left, right) =>
     compareIsoDateDesc(left.removedAt, right.removedAt),
@@ -239,9 +260,20 @@ export function mergeLibraryPayload(
     history,
     savedMixes,
     playlists,
-    removedFavorites,
-    deletedPlaylists,
-    deletedSavedMixes,
+    // 墓碑在上面已套用完刪除,持久化前才修剪:過期墓碑仍會在本次合併生效,
+    // 只是不再永久佔用 IndexedDB。
+    removedFavorites: pruneTombstones(
+      removedFavorites,
+      (item) => item.removedAt,
+    ),
+    deletedPlaylists: pruneTombstones(
+      deletedPlaylists,
+      (item) => item.removedAt,
+    ),
+    deletedSavedMixes: pruneTombstones(
+      deletedSavedMixes,
+      (item) => item.removedAt,
+    ),
   };
 }
 

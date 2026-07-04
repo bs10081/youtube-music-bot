@@ -47,9 +47,11 @@ const SESSION_VOLUME_RETRY_DELAY_MS = 120;
 const MAX_USER_VOLUME = 100;
 const MAX_SESSION_VOLUME = 200;
 const MAX_TRACK_VOLUME_MULTIPLIER = 1;
-// dynaudnorm:RMS 模式把感知響度拉向一致,3 秒級高斯平滑避免增益抽動(pumping),
-// m=5 限制最大增益避免把安靜前奏放大成噪音。
-const VOLUME_NORMALIZATION_FILTER = "dynaudnorm=f=400:g=15:m=5:r=0.8:p=0.9";
+// loudnorm 單趟動態模式:以 EBU R128 把每首歌拉向 -14 LUFS(串流平台標準),
+// 偏 loud 的 master 會被壓下來、安靜曲目會被拉上去,跨曲聽感一致;
+// 單趟模式內部以 192kHz 運算,尾端 aresample 避免把 192kHz 推給音訊裝置。
+const VOLUME_NORMALIZATION_FILTER =
+  "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000";
 
 class PlayerService {
   private static instance: PlayerService;

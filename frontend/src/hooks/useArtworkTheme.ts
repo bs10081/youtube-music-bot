@@ -11,12 +11,14 @@ import {
   getDefaultArtworkThemeTokens,
   normalizeArtworkThemeTokens,
 } from "@/utils/artworkTheme";
+import { setCappedCacheValue } from "@/utils/cappedCache";
 
 const resolvedThemeCache = new Map<string, ArtworkThemeTokens | null>();
 const pendingThemeCache = new Map<string, Promise<ArtworkThemeTokens | null>>();
 
 const THEME_CROSSFADE_DURATION_MS = 640;
 const THEME_CACHE_LIMIT = 40;
+const IMAGE_LOAD_TIMEOUT_MS = 15000;
 
 export interface ArtworkThemeState {
   currentTokens: ArtworkThemeTokens;
@@ -145,17 +147,17 @@ async function getArtworkThemeTokens(
 
   const extractionPromise = extractArtworkThemeTokens(artworkUrl, mode)
     .then((tokens) => {
-      setCappedCacheValue(resolvedThemeCache, cacheKey, tokens);
+      setCappedCacheValue(resolvedThemeCache, cacheKey, tokens, THEME_CACHE_LIMIT);
       pendingThemeCache.delete(cacheKey);
       return tokens;
     })
     .catch(() => {
-      setCappedCacheValue(resolvedThemeCache, cacheKey, null);
+      setCappedCacheValue(resolvedThemeCache, cacheKey, null, THEME_CACHE_LIMIT);
       pendingThemeCache.delete(cacheKey);
       return null;
     });
 
-  setCappedCacheValue(pendingThemeCache, cacheKey, extractionPromise);
+  setCappedCacheValue(pendingThemeCache, cacheKey, extractionPromise, THEME_CACHE_LIMIT);
 
   return extractionPromise;
 }
@@ -199,14 +201,34 @@ function loadImage(
   return new Promise((resolve, reject) => {
     const image = new Image();
 
+    // 網路停滯時 onload/onerror 可能永不觸發,逾時後卸掉 handler 與 src,
+    // 讓 Image 物件可被回收,避免長時間 session 累積孤兒物件。
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out loading artwork: ${source}`));
+    }, IMAGE_LOAD_TIMEOUT_MS);
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
+    };
+
     if (useCrossOrigin) {
       image.crossOrigin = "anonymous";
     }
 
     image.decoding = "async";
     image.referrerPolicy = "no-referrer";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load artwork: ${source}`));
+    image.onload = () => {
+      window.clearTimeout(timeoutId);
+      resolve(image);
+    };
+    image.onerror = () => {
+      cleanup();
+      reject(new Error(`Failed to load artwork: ${source}`));
+    };
     image.src = source;
   });
 }
@@ -216,25 +238,5 @@ function applyArtworkTheme(tokens: ArtworkThemeTokens): void {
 
   for (const [tokenName, tokenValue] of Object.entries(tokens)) {
     root.style.setProperty(tokenName, tokenValue);
-  }
-}
-
-function setCappedCacheValue<T>(
-  cache: Map<string, T>,
-  key: string,
-  value: T,
-): void {
-  if (cache.has(key)) {
-    cache.delete(key);
-  }
-
-  cache.set(key, value);
-
-  while (cache.size > THEME_CACHE_LIMIT) {
-    const oldestKey = cache.keys().next().value;
-    if (typeof oldestKey !== "string") {
-      break;
-    }
-    cache.delete(oldestKey);
   }
 }

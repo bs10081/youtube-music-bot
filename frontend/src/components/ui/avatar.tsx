@@ -61,6 +61,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             alt={alt || ""}
             className="h-full w-full object-cover"
             decoding="async"
+            loading="lazy"
             onError={() => {
               setFailedCandidates((previous) =>
                 previous.includes(optimizedSrc)

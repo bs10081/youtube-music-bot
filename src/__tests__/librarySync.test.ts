@@ -13,6 +13,12 @@ const trackOne = {
   duration: 180,
 };
 
+// 墓碑有 90 天 TTL(pruneTombstones),涉及墓碑保留的測試必須用相對現在的時間,
+// 固定日期會隨時間過期導致測試腐化。
+const HOUR_MS = 60 * 60 * 1000;
+const hoursAgoIso = (hours: number) =>
+  new Date(Date.now() - hours * HOUR_MS).toISOString();
+
 const baseSnapshot: LibrarySnapshot = {
   profileId: "profile-a",
   profileName: "Profile A",
@@ -90,11 +96,11 @@ describe("library sync helpers", () => {
 
     const merged = mergeLibraryPayload(currentSnapshot, {
       ...toSyncedLibraryPayload(baseSnapshot),
-      updatedAt: "2026-03-15T02:00:00.000Z",
+      updatedAt: hoursAgoIso(1),
       removedFavorites: [
         {
           videoId: "track-1",
-          removedAt: "2026-03-15T02:00:00.000Z",
+          removedAt: hoursAgoIso(1),
         },
       ],
     });
@@ -149,11 +155,11 @@ describe("library sync helpers", () => {
 
     const merged = mergeLibraryPayload(currentSnapshot, {
       ...toSyncedLibraryPayload(baseSnapshot),
-      updatedAt: "2026-03-15T02:00:00.000Z",
+      updatedAt: hoursAgoIso(1),
       deletedPlaylists: [
         {
           id: "playlist-1",
-          removedAt: "2026-03-15T02:00:00.000Z",
+          removedAt: hoursAgoIso(1),
         },
       ],
     });
@@ -178,11 +184,11 @@ describe("library sync helpers", () => {
 
     const merged = mergeLibraryPayload(currentSnapshot, {
       ...toSyncedLibraryPayload(baseSnapshot),
-      updatedAt: "2026-03-15T02:00:00.000Z",
+      updatedAt: hoursAgoIso(1),
       deletedSavedMixes: [
         {
           id: "mix-1",
-          removedAt: "2026-03-15T02:00:00.000Z",
+          removedAt: hoursAgoIso(1),
         },
       ],
     });
@@ -211,10 +217,10 @@ describe("library sync helpers", () => {
       removedFavorites: [
         {
           videoId: "track-1",
-          removedAt: "2026-03-15T02:00:00.000Z",
+          removedAt: hoursAgoIso(1),
         },
       ],
-      updatedAt: "2026-03-15T02:00:00.000Z",
+      updatedAt: hoursAgoIso(1),
     };
 
     const deviceBAfterMerge = mergeLibraryPayload(

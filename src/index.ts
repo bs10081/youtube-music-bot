@@ -2,6 +2,12 @@ import { createServer } from './server.ts';
 import { getAppMetadata } from "./utils/app-metadata.ts";
 import { validateEnvironment } from "./utils/env.ts";
 import { logRuntimeDependencyStatus } from "./utils/runtime-dependencies.ts";
+import {
+  isFoliaBridgeEnabled,
+  resolveFoliaHost,
+  resolveFoliaPort,
+  stopFoliaServer,
+} from "./websocket/folia-bridge.ts";
 
 const metadata = getAppMetadata();
 validateEnvironment();
@@ -13,10 +19,15 @@ const displayHost = process.env.HOST?.trim() || "localhost";
 // 這裡停止接受新連線後明確退出,避免 Ctrl+C / docker stop 時卡住。
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
+    stopFoliaServer();
     server.stop();
     process.exit(0);
   });
 }
+
+const foliaBanner = isFoliaBridgeEnabled()
+  ? `\n🎤 Folia bridge: ws://${resolveFoliaHost()}:${resolveFoliaPort()}/api/ws/lyric`
+  : "";
 
 console.log(`
 ╔════════════════════════════════════════════╗
@@ -25,7 +36,7 @@ console.log(`
 
 🏷️  Version: ${metadata.buildVersion}
 🎵 Server running at: http://${displayHost}:${server.port}
-🌐 WebSocket endpoint: ws://${displayHost}:${server.port}/ws
+🌐 WebSocket endpoint: ws://${displayHost}:${server.port}/ws${foliaBanner}
 
 請使用瀏覽器開啟 http://${displayHost}:${server.port} 來使用點歌系統。
 確保已安裝 mpv 播放器：

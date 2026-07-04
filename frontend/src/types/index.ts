@@ -217,6 +217,15 @@ export interface PlaybackSettings {
   volumeNormalizationEnabled: boolean;
 }
 
+// Folia Now Playing bridge 狀態
+export interface FoliaBridgeStatus {
+  enabled: boolean;
+  host: string;
+  port: number;
+  clients: number;
+  wsUrl: string;
+}
+
 // 播放狀態
 export interface PlaybackState {
   isPlaying: boolean;

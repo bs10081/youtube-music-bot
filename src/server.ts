@@ -13,6 +13,11 @@ import {
   handleSyncWebSocketMessage,
   handleSyncWebSocketOpen,
 } from "./websocket/sync-handler.ts";
+import {
+  initializeFoliaBridge,
+  isFoliaBridgeEnabled,
+  startFoliaServer,
+} from "./websocket/folia-bridge.ts";
 
 type SocketData = {
   channel: "playback" | "sync";
@@ -69,6 +74,12 @@ app.route("/api", api);
 export function createServer() {
   // 初始化 WebSocket 廣播
   initializeWebSocket();
+
+  // Folia Now Playing bridge(選配,獨立 port,預設關閉)
+  if (isFoliaBridgeEnabled()) {
+    initializeFoliaBridge();
+    startFoliaServer();
+  }
   const configuredPort = Number.parseInt(process.env.PORT || "3000", 10);
   const port = Number.isFinite(configuredPort) ? configuredPort : 3000;
   const hostname = process.env.HOST?.trim() || undefined;

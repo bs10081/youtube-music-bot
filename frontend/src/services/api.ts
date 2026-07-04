@@ -6,6 +6,7 @@ import type {
   DiscoverFeedResponse,
   DiscoverMarketCode,
   DiscoverMarketsResponse,
+  FoliaBridgeStatus,
   PlaybackSettings,
   PlaybackState,
   PlaylistDetails,
@@ -228,6 +229,23 @@ class ApiService {
     return this.request<PlaybackSettings>("/playback/settings", {
       method: "POST",
       body: JSON.stringify(settings),
+    });
+  }
+
+  // Folia Now Playing bridge
+  async getFoliaBridgeStatus(): Promise<ApiResponse<FoliaBridgeStatus>> {
+    return this.request<FoliaBridgeStatus>("/folia/status");
+  }
+
+  async enableFoliaBridge(): Promise<ApiResponse<FoliaBridgeStatus>> {
+    return this.request<FoliaBridgeStatus>("/folia/enable", {
+      method: "POST",
+    });
+  }
+
+  async disableFoliaBridge(): Promise<ApiResponse<FoliaBridgeStatus>> {
+    return this.request<FoliaBridgeStatus>("/folia/disable", {
+      method: "POST",
     });
   }
 

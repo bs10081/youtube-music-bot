@@ -16,6 +16,11 @@ import {
   parseArtworkUrl,
 } from "../utils/artwork-proxy.ts";
 import { getRuntimeDependencyStatus } from "../utils/runtime-dependencies.ts";
+import {
+  disableFoliaBridge,
+  enableFoliaBridge,
+  getFoliaBridgeStatus,
+} from "../websocket/folia-bridge.ts";
 
 const api = new Hono();
 
@@ -454,6 +459,68 @@ api.post("/radio/toggle", (c) => {
     console.error("Failed to toggle radio:", error);
     return c.json<ApiResponse>(
       { success: false, error: "Failed to toggle radio" },
+      500,
+    );
+  }
+});
+
+/**
+ * GET /api/folia/status
+ * 取得 Folia Now Playing bridge 目前狀態
+ */
+api.get("/folia/status", (c) => {
+  return c.json<ApiResponse>({
+    success: true,
+    data: getFoliaBridgeStatus(),
+  });
+});
+
+/**
+ * POST /api/folia/enable
+ * 啟用 Folia Now Playing bridge(runtime 開關,與 FOLIA_BRIDGE 環境變數並存)
+ */
+api.post("/folia/enable", (c) => {
+  try {
+    const status = enableFoliaBridge();
+
+    if (!status.enabled) {
+      // startFoliaServer 內部已記錄 bind 失敗原因(常見:port 被占用)
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: `Failed to start Folia bridge on port ${status.port} (port in use?)`,
+        },
+        500,
+      );
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: status,
+    });
+  } catch (error) {
+    console.error("Failed to enable Folia bridge:", error);
+    return c.json<ApiResponse>(
+      { success: false, error: "Failed to enable Folia bridge" },
+      500,
+    );
+  }
+});
+
+/**
+ * POST /api/folia/disable
+ * 停用 Folia Now Playing bridge 並斷開已連線的 client
+ */
+api.post("/folia/disable", (c) => {
+  try {
+    return c.json<ApiResponse>({
+      success: true,
+      data: disableFoliaBridge(),
+    });
+  } catch (error) {
+    console.error("Failed to disable Folia bridge:", error);
+    return c.json<ApiResponse>(
+      { success: false, error: "Failed to disable Folia bridge" },
       500,
     );
   }

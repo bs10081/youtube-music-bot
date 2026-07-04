@@ -38,4 +38,25 @@ export function validateEnvironment(): void {
       'CORS_ORIGIN="*" is redundant; leave it unset for open access without credentials',
     );
   }
+
+  const foliaBridge = process.env.FOLIA_BRIDGE?.trim();
+  if (foliaBridge) {
+    const foliaPort = process.env.FOLIA_PORT?.trim();
+    if (foliaPort && !Number.isFinite(Number.parseInt(foliaPort, 10))) {
+      log.warn("FOLIA_PORT is not a valid number; falling back to 9863", {
+        foliaPort,
+      });
+    }
+    const mainPort = Number.parseInt(port || "3000", 10);
+    const resolvedFoliaPort = Number.parseInt(foliaPort || "9863", 10);
+    if (
+      Number.isFinite(mainPort) &&
+      Number.isFinite(resolvedFoliaPort) &&
+      mainPort === resolvedFoliaPort
+    ) {
+      log.warn("FOLIA_PORT equals PORT; the Folia bridge will fail to bind", {
+        port: mainPort,
+      });
+    }
+  }
 }

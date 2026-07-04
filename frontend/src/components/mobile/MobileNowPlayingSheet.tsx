@@ -8,6 +8,7 @@ import { PlaybackControls } from "@/components/player/PlaybackControls";
 import { VolumeControl } from "@/components/player/VolumeControl";
 import { CrossfadeControl } from "@/components/player/CrossfadeControl";
 import { VolumeNormalizationControl } from "@/components/player/VolumeNormalizationControl";
+import { FoliaBridgeControl } from "@/components/player/FoliaBridgeControl";
 import { LyricsDisplay } from "@/components/lyrics/LyricsDisplay";
 import { QueueSection } from "@/components/queue/QueueSection";
 import { useAppUiStore } from "@/stores/appUiStore";
@@ -192,6 +193,8 @@ export const MobileNowPlayingSheet = () => {
                 <CrossfadeControl compact />
 
                 <VolumeNormalizationControl compact />
+
+                <FoliaBridgeControl compact />
 
                 <VolumeControl className="max-w-none" />
               </div>

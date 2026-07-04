@@ -59,6 +59,18 @@ YTDLP_COOKIES_FILE="/app/secrets/youtube-cookies.txt"
 - `YTDLP_COOKIES_FILE`
   當 YouTube 對目前 IP 要求人類驗證時，可掛入已登入帳號匯出的 cookies 檔
 
+### Folia Now Playing bridge（選配）
+
+可將本服務作為 [Folia](https://github.com/chthollyphile/folia-major) 的外部播放源：啟用後會在獨立 port 提供 Widdit now-playing-service 相容的 WebSocket（`/api/ws/lyric`，推送 `Track` / `Lyric` / `PlayerPauseState` / `PlayerProgress` / `PlayerProgressReplay` 事件）與進度查詢端點（`GET /api/query/progress`），Folia 的 Stage 模式即可同步顯示目前播放的曲目、封面與 LRC 歌詞。
+
+```bash
+FOLIA_BRIDGE=true   # 啟用 bridge（預設關閉）
+FOLIA_PORT=9863     # Folia 端 hardcode 9863，通常不需更改
+FOLIA_HOST=127.0.0.1 # 協定無認證，預設只綁 loopback；跨機需明確設定
+```
+
+實作位於 [folia-bridge.ts](src/websocket/folia-bridge.ts)，與既有 `/ws` 頻道完全獨立。
+
 ## 系統架構
 
 ```

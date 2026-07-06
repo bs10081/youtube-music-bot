@@ -5,7 +5,7 @@
 # 補丁對應的修改原始碼公開於本 repo 的 deploy/folia/patches/，符合 AGPL-3.0 散布條件。
 
 # 固定 Folia commit；單一事實來源為 deploy/folia/FOLIA_COMMIT，CI 會斷言兩者一致
-ARG FOLIA_COMMIT=b3dca36681742c22b87adf806c639567f6966114
+ARG FOLIA_COMMIT=7d05426738837890005180cd74b503ce5400ede9
 
 FROM node:20-slim AS builder
 ARG FOLIA_COMMIT

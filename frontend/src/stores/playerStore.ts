@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  AudioOutputStatus,
   ConnectionStatus,
   PlaybackState,
   PlaybackProgress,
@@ -25,6 +26,10 @@ interface PlayerStore {
   isLoadingTrack: boolean;
   loadingMessage: string | null;
   setLoadingTrack: (loading: boolean, message?: string) => void;
+
+  // 音訊輸出(WS audio_output 廣播同步)
+  audioOutput: AudioOutputStatus | null;
+  setAudioOutput: (status: AudioOutputStatus) => void;
 
   // 歌詞
   lyrics: LyricLine[];
@@ -146,6 +151,10 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       }, 10000);
     }
   },
+
+  // 音訊輸出
+  audioOutput: null,
+  setAudioOutput: (status) => set({ audioOutput: status }),
 
   // 歌詞
   lyrics: [],

@@ -21,6 +21,10 @@ import {
   enableFoliaBridge,
   getFoliaBridgeStatus,
 } from "../websocket/folia-bridge.ts";
+import {
+  AudioOutputError,
+  getAudioOutputService,
+} from "../services/audio-output.service.ts";
 
 const api = new Hono();
 
@@ -521,6 +525,99 @@ api.post("/folia/disable", (c) => {
     console.error("Failed to disable Folia bridge:", error);
     return c.json<ApiResponse>(
       { success: false, error: "Failed to disable Folia bridge" },
+      500,
+    );
+  }
+});
+
+/**
+ * GET /api/audio/outputs
+ * 列出可用音訊輸出(PulseAudio sinks)與目前模式/預設輸出
+ */
+api.get("/audio/outputs", async (c) => {
+  try {
+    const status = await getAudioOutputService().getStatus({ refresh: true });
+    return c.json<ApiResponse>({ success: true, data: status });
+  } catch (error) {
+    console.error("Failed to list audio outputs:", error);
+    return c.json<ApiResponse>(
+      { success: false, error: "Failed to list audio outputs" },
+      500,
+    );
+  }
+});
+
+/**
+ * GET /api/audio/output
+ * 輕量狀態查詢(host watcher 每 2 秒輪詢);順便刷新 sink 快取,
+ * 外部變更(watcher 切了系統輸出)會在此觸發 audio_output WS 廣播
+ */
+api.get("/audio/output", async (c) => {
+  try {
+    const status = await getAudioOutputService().getStatus();
+    return c.json<ApiResponse>({
+      success: true,
+      data: { mode: status.mode, sink: status.defaultSink },
+    });
+  } catch (error) {
+    console.error("Failed to get audio output:", error);
+    return c.json<ApiResponse>(
+      { success: false, error: "Failed to get audio output" },
+      500,
+    );
+  }
+});
+
+/**
+ * POST /api/audio/output
+ * 切換音訊輸出:{ mode: "system" } 交回 host watcher 跟隨 macOS,
+ * { mode: "manual", sink } 立即切換到指定 sink(含播放中串流)
+ */
+api.post("/audio/output", async (c) => {
+  try {
+    const body = await c.req.json<{ mode?: string; sink?: string }>();
+    const service = getAudioOutputService();
+
+    if (body.mode === "system") {
+      return c.json<ApiResponse>({
+        success: true,
+        data: await service.setSystemMode(),
+      });
+    }
+
+    if (body.mode === "manual") {
+      if (typeof body.sink !== "string" || body.sink.trim().length === 0) {
+        return c.json<ApiResponse>(
+          { success: false, error: "manual mode requires a sink name" },
+          400,
+        );
+      }
+      return c.json<ApiResponse>({
+        success: true,
+        data: await service.setManualSink(body.sink.trim()),
+      });
+    }
+
+    return c.json<ApiResponse>(
+      { success: false, error: 'mode must be "system" or "manual"' },
+      400,
+    );
+  } catch (error) {
+    if (error instanceof AudioOutputError) {
+      const httpStatus =
+        error.code === "SINK_NOT_FOUND"
+          ? 404
+          : error.code === "NOT_SUPPORTED"
+            ? 400
+            : 500;
+      return c.json<ApiResponse>(
+        { success: false, error: error.message, code: error.code },
+        httpStatus,
+      );
+    }
+    console.error("Failed to set audio output:", error);
+    return c.json<ApiResponse>(
+      { success: false, error: "Failed to set audio output" },
       500,
     );
   }

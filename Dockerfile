@@ -42,10 +42,11 @@ ARG APP_GIT_SHA
 ARG YTDLP_VERSION
 WORKDIR /app
 
-# 安裝 mpv，並使用可控版本的 yt-dlp binary
+# 安裝 mpv 與 pactl(音訊輸出切換用),並使用可控版本的 yt-dlp binary
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     mpv \
+    pulseaudio-utils \
     ca-certificates \
     curl \
     && rm -rf /var/lib/apt/lists/*

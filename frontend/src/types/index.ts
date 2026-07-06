@@ -217,6 +217,24 @@ export interface PlaybackSettings {
   volumeNormalizationEnabled: boolean;
 }
 
+// 音訊輸出(PulseAudio sink;僅容器部署支援)
+export type AudioOutputMode = "system" | "manual";
+
+export interface AudioSinkInfo {
+  name: string;
+  description: string;
+  state: string;
+  isDefault: boolean;
+}
+
+export interface AudioOutputStatus {
+  supported: boolean;
+  platform: string;
+  mode: AudioOutputMode;
+  defaultSink: string | null;
+  sinks: AudioSinkInfo[];
+}
+
 // Folia Now Playing bridge 狀態
 export interface FoliaBridgeStatus {
   enabled: boolean;
@@ -261,7 +279,8 @@ export type WSMessage =
   | { type: "pause" }
   | { type: "skip" }
   | { type: "volume"; value: number }
-  | { type: "seek"; value: number };
+  | { type: "seek"; value: number }
+  | { type: "audio_output"; status: AudioOutputStatus };
 
 // API 回應格式
 export interface ApiResponse<T = unknown> {

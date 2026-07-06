@@ -1,6 +1,7 @@
 import type { ServerWebSocket } from "bun";
 import type { WSMessage } from "../types/index.ts";
 import { getQueueService } from "../services/queue.service.ts";
+import { getAudioOutputService } from "../services/audio-output.service.ts";
 import { log } from "../utils/logger.ts";
 
 // 所有連接的客戶端
@@ -91,6 +92,18 @@ export function handleWebSocketOpen(ws: ServerWebSocket<unknown>): void {
       state,
     } as WSMessage),
   );
+
+  // 發送目前音訊輸出狀態(容器部署才有 sink 資料;失敗不影響連線)
+  getAudioOutputService()
+    .getStatus()
+    .then((status) => {
+      ws.send(JSON.stringify({ type: "audio_output", status } as WSMessage));
+    })
+    .catch((error) => {
+      log.warn("Failed to fetch audio output status for new client", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
   // 如果當前有歌曲在播放，也發送歌詞
   if (state.currentTrack) {
@@ -211,6 +224,14 @@ export function initializeWebSocket(): void {
       type: "play_error",
       error,
       track,
+    });
+  });
+
+  // 音訊輸出變更(WebUI 手動切換或 host watcher 跟隨系統)→ 廣播給所有客戶端
+  getAudioOutputService().onChange((status) => {
+    broadcast({
+      type: "audio_output",
+      status,
     });
   });
 

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.youtube-music-bot.audio-follow</string>
+
+    <!-- 安裝時把路徑改成實際的 repo 位置(或複製 script 到固定路徑) -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>/Users/bs10081/Developer/youtube-music-bot/deploy/audio-follow/audio-follow.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- auto = 每輪從 `container list` 解析 bot 容器 IP;
+             Docker Desktop 等其他部署改成固定位址如 http://127.0.0.1:3000 -->
+        <key>BOT_URL</key>
+        <string>auto</string>
+        <key>POLL_INTERVAL</key>
+        <string>2</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/bs10081/Library/Logs/youtube-music-bot-audio-follow.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/bs10081/Library/Logs/youtube-music-bot-audio-follow.log</string>
+</dict>
+</plist>

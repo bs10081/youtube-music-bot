@@ -8,6 +8,9 @@
 #     --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.16.0.0/12;192.168.65.0/24"
 #
 # 啟動：docker compose -f docker-compose.yml -f docker-compose.macos.yml up -d
+#
+# 選配:讓輸出跟隨 macOS 系統音訊設定(WebUI「跟隨系統」模式)
+# 需在主機安裝 deploy/audio-follow/ 的 watcher,見該目錄 README。
 services:
   youtube-music-bot:
     devices: !reset []

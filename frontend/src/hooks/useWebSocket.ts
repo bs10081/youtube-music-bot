@@ -153,6 +153,10 @@ export const useWebSocket = () => {
           updatePlaybackState({ isPlaying: false });
           break;
 
+        case "audio_output":
+          usePlayerStore.getState().setAudioOutput(message.status);
+          break;
+
         default:
           console.log("未處理的訊息類型:", message);
       }

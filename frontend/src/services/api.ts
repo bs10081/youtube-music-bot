@@ -6,6 +6,7 @@ import type {
   DiscoverFeedResponse,
   DiscoverMarketCode,
   DiscoverMarketsResponse,
+  AudioOutputStatus,
   FoliaBridgeStatus,
   PlaybackSettings,
   PlaybackState,
@@ -229,6 +230,20 @@ class ApiService {
     return this.request<PlaybackSettings>("/playback/settings", {
       method: "POST",
       body: JSON.stringify(settings),
+    });
+  }
+
+  // 音訊輸出(PulseAudio sink)
+  async getAudioOutputs(): Promise<ApiResponse<AudioOutputStatus>> {
+    return this.request<AudioOutputStatus>("/audio/outputs");
+  }
+
+  async setAudioOutput(
+    payload: { mode: "system" } | { mode: "manual"; sink: string },
+  ): Promise<ApiResponse<AudioOutputStatus>> {
+    return this.request<AudioOutputStatus>("/audio/output", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 

@@ -6,6 +6,7 @@ import { VolumeControl } from "./VolumeControl";
 import { CrossfadeControl } from "./CrossfadeControl";
 import { VolumeNormalizationControl } from "./VolumeNormalizationControl";
 import { FoliaBridgeControl } from "./FoliaBridgeControl";
+import { AudioOutputControl } from "./AudioOutputControl";
 import { usePlayerStore } from "@/stores/playerStore";
 import { cn } from "@/lib/utils";
 import { OpenAlbumButton } from "@/components/album/OpenAlbumButton";
@@ -125,6 +126,8 @@ export const PlayerSection = ({
                     </div>
 
                     <VolumeNormalizationControl compact />
+
+                    <AudioOutputControl compact />
 
                     <FoliaBridgeControl compact />
                   </div>

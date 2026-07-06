@@ -1,6 +1,37 @@
 import type { ReleaseNotesEntry } from "../types/index.ts";
 
 const fallbackReleaseNotesByVersion: Record<string, ReleaseNotesEntry> = {
+  "0.11.0": {
+    version: "0.11.0",
+    title: "音訊輸出切換:WebUI 選擇裝置或跟隨 macOS",
+    publishedAt: "2026-07-06",
+    status: "preview",
+    summary:
+      "修正容器部署下聲音固定從 Mac mini 揚聲器出的問題:WebUI 新增音訊輸出面板可手動選擇裝置,或開啟「跟隨系統」讓輸出自動同步 macOS 音訊設定;Folia 同步升級 v0.5.22。",
+    sections: [
+      {
+        category: "added",
+        title: "音訊輸出裝置切換",
+        description:
+          "容器內 mpv 經 PulseAudio 播放時,default sink 不會跟隨 macOS 輸出切換,新增完整的裝置管理。",
+        items: [
+          "WebUI 播放面板(桌面與手機)新增「音訊輸出」控制:列出 PulseAudio 輸出裝置,手動切換立即生效於播放中的串流(pactl set-default-sink + move-sink-input),crossfade 的第二路 mpv 也會落在新裝置。",
+          "「跟隨系統」模式(預設):新增 deploy/audio-follow host watcher(launchd),輪詢 macOS 預設輸出並同步 PulseAudio,於系統設定切換輸出約 2 秒內生效;WebUI 手動模式下 watcher 自動讓位。",
+          "新增 GET /api/audio/outputs、GET/POST /api/audio/output 端點與 audio_output WebSocket 廣播,多裝置開啟 WebUI 時輸出狀態即時同步。",
+          "裝置清單自動過濾虛擬麥克風 sink(如 Steam Streaming Microphone);原生 macOS 執行時顯示「自動跟隨系統」說明(coreaudio 本就跟隨)。",
+        ],
+      },
+      {
+        category: "changed",
+        title: "Folia 升級 v0.5.22",
+        description: "Folia web 釘選 commit 升至 v0.5.22,補丁無需改動。",
+        items: [
+          "修復本地歌曲列表黑屏問題、新增 .ttml 歌詞匯入、暗/亮主題可分別命名等上游更新。",
+          "容器映像加入 pulseaudio-utils(pactl),供音訊輸出切換使用。",
+        ],
+      },
+    ],
+  },
   "0.10.0": {
     version: "0.10.0",
     title: "一鍵部署:Bot + Folia 歌詞頁",

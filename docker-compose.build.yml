@@ -1,0 +1,12 @@
+# folia-web 現場建置 override（不依賴 Docker Hub 預建映像）：
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# 建置仍需網路（clone folia-major）；FOLIA_COMMIT 可用環境變數覆寫，
+# 預設沿用 deploy/folia/Dockerfile 內的 pin（與 deploy/folia/FOLIA_COMMIT 一致）。
+services:
+  folia-web:
+    image: bs10081/folia-web:local
+    pull_policy: build
+    build:
+      context: ./deploy/folia
+      args:
+        FOLIA_COMMIT: "${FOLIA_COMMIT:-b3dca36681742c22b87adf806c639567f6966114}"

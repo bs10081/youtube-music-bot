@@ -1,0 +1,16 @@
+# macOS（Docker Desktop）音訊 override：
+# Docker Desktop 的 Linux VM 沒有 /dev/snd，必須移除裝置直通（!reset 需 Compose >= v2.24），
+# 改由 PulseAudio over TCP 把聲音送回 macOS 主機。
+#
+# 主機端先執行（一次）：
+#   brew install pulseaudio
+#   pulseaudio --daemon --exit-idle-time=-1 \
+#     --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.16.0.0/12;192.168.65.0/24"
+#
+# 啟動：docker compose -f docker-compose.yml -f docker-compose.macos.yml up -d
+services:
+  youtube-music-bot:
+    devices: !reset []
+    group_add: !reset []
+    environment:
+      - PULSE_SERVER=tcp:host.docker.internal:4713

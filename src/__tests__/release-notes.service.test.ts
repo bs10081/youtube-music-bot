@@ -91,7 +91,7 @@ describe("ReleaseNotesService", () => {
     expect(response.source).toBe("fallback");
     expect(response.currentRelease?.version).toBe("0.7.0");
     expect(response.releases.map((entry) => entry.version)).toContain("0.7.0");
-    expect(response.releases[0]?.version).toBe("0.8.0");
+    expect(response.releases[0]?.version).toBe("0.10.0");
     expect(
       response.warnings.some((warning) => warning.includes("已改用本機版本說明")),
     ).toBe(true);

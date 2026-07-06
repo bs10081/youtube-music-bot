@@ -6,6 +6,7 @@ services:
     pull_policy: always
     ports:
       - "3000:3000"
+      - "9863:9863" # Folia bridge（區網 Folia Electron 版可直連；無認證，勿暴露公網）
     devices:
       - /dev/snd:/dev/snd  # 音頻設備
     group_add:
@@ -15,6 +16,8 @@ services:
       - LOG_LEVEL=INFO
       - SYNC_STATE_DB_PATH=/data/sync-state.sqlite
       - YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr
+      - FOLIA_BRIDGE=true
+      - FOLIA_HOST=0.0.0.0 # 容器內須綁非 loopback，folia-web 的 nginx 才能反代
       # 如果生產 IP 被 YouTube 要求人類驗證，掛載 cookies 檔後取消註解：
       # - YTDLP_COOKIES_FILE=/run/secrets/youtube-cookies.txt
     volumes:
@@ -34,6 +37,25 @@ services:
     #   - /run/user/1000/pulse:/run/user/1000/pulse
     # environment:
     #   - PULSE_SERVER=unix:/run/user/1000/pulse/native
+
+  folia-web:
+    image: bs10081/folia-web:latest
+    container_name: folia-web
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "8080:80" # 遠端瀏覽器直接開 http://<host>:8080 檢視歌詞（免安裝）
+    depends_on:
+      youtube-music-bot:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
   watchtower:
     image: nickfedor/watchtower:latest

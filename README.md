@@ -180,6 +180,52 @@ npm run start
 
 生產模式下訪問 http://localhost:3000 即可使用完整功能的 React 前端。
 
+## 一鍵部署（Bot + Folia 歌詞頁）
+
+`docker compose up -d` 一次啟動兩個服務：點歌機本體（含 Folia bridge）與網頁版 [Folia](https://github.com/chthollyphile/folia-major) 歌詞視覺化。其他人只要用瀏覽器開啟主機的 8080 port，就能遠端檢視同步歌詞，**不需要在自己的電腦安裝任何東西**。
+
+### 快速開始
+
+```bash
+# Linux（含樹莓派）：
+docker compose up -d
+
+# macOS（Docker Desktop）：先啟動主機端 PulseAudio（見下方「macOS 音訊設定」），再：
+docker compose -f docker-compose.yml -f docker-compose.macos.yml up -d
+```
+
+### 服務入口
+
+| 服務 | URL | 說明 |
+|---|---|---|
+| 點歌機 WebUI | `http://<host>:3000` | 搜尋、點歌、佇列管理 |
+| Folia 歌詞頁 | `http://<host>:8080` | 瀏覽器直接開啟，免安裝，自動連上歌詞串流 |
+| Folia bridge 直連 | `ws://<host>:9863/api/ws/lyric` | 給區網內 Folia Electron 版等原生客戶端直連 |
+
+歌詞頁的運作方式：`folia-web` 容器以 nginx 服務打過補丁的 Folia web 版（WS 連線網址改為依頁面來源推導），並將 `/api/ws/lyric` 與 `/api/query/progress` 反向代理到 bot 容器的 9863 port，因此任何能開啟 8080 的裝置都能即時看到曲目、封面與逐行歌詞。
+
+### 安全注意
+
+- **8080 與 9863 均無認證**：任何能連到主機的人都能看到正在播放的曲目與歌詞。請只在信任的區網使用，勿直接暴露公網；需要對外時建議加防火牆規則或在前面架帶 Basic Auth 的反向代理。
+- WebUI 內的 Folia 開關（`POST /api/folia/disable`）關閉後，8080 歌詞頁會斷線並每 2 秒重試，重新啟用（`POST /api/folia/enable`）或重啟容器即自動恢復。compose 已預設 `FOLIA_BRIDGE=true`，容器重啟後 bridge 一定會回到開啟狀態。
+
+### macOS 音訊設定
+
+Docker Desktop 的 Linux VM 沒有 `/dev/snd`，改用 PulseAudio over TCP 把聲音送回 macOS 主機（`docker-compose.macos.yml` 已設好 `PULSE_SERVER`，並需要 Docker Compose ≥ v2.24 支援 `!reset`）：
+
+```bash
+brew install pulseaudio
+pulseaudio --daemon --exit-idle-time=-1 \
+  --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.16.0.0/12;192.168.65.0/24"
+```
+
+### Folia 映像與更新
+
+- 預設拉取 CI 預建的多架構映像 `bs10081/folia-web:latest`（amd64/arm64）。
+- 想從原始碼現場建置（不依賴 Docker Hub）：`docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`。
+- Folia 版本固定於 [deploy/folia/FOLIA_COMMIT](deploy/folia/FOLIA_COMMIT)。升級流程：更新該檔的 commit SHA 與 [deploy/folia/Dockerfile](deploy/folia/Dockerfile) 的 `ARG FOLIA_COMMIT` 預設值 → 若補丁套不上則重新產生 [deploy/folia/patches/](deploy/folia/patches/) → push 觸發 `folia-image.yml` CI 重建。
+- Folia 原始專案為 [chthollyphile/folia-major](https://github.com/chthollyphile/folia-major)（AGPL-3.0）。本 repo 對其的修改以補丁形式公開於 `deploy/folia/patches/`（端點改為同源推導、Now Playing 預設開啟），映像內保留原始 LICENSE。
+
 ## Docker 部署（樹莓派）
 
 本專案支援透過 Docker 部署到樹莓派，提供簡單的容器化部署方案。

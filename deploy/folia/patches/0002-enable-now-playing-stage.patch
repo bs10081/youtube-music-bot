@@ -1,0 +1,13 @@
+diff --git a/src/stores/useSettingsUiStore.ts b/src/stores/useSettingsUiStore.ts
+index e2fb53b..f202028 100644
+--- a/src/stores/useSettingsUiStore.ts
++++ b/src/stores/useSettingsUiStore.ts
+@@ -909,7 +909,7 @@ export const useSettingsUiStore = create<SettingsUiState>((set, get) => ({
+     lyricsCustomFont: readStoredCustomLyricsFont(),
+     lyricFilterPattern: readStoredLyricFilterPattern(),
+     showOpenPanelCloseButton: getStoredBoolean('show_open_panel_close_button', true),
+-    enableNowPlayingStage: getStoredBoolean('enable_now_playing_stage', false),
++    enableNowPlayingStage: getStoredBoolean('enable_now_playing_stage', true),
+     queueAddBehavior: readStoredQueueAddBehavior(),
+     audioOutputDeviceId: readStoredAudioOutputDeviceId(),
+     volume: readStoredVolume(),

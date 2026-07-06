@@ -1,0 +1,82 @@
+name: Folia Web Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "deploy/folia/**"
+      - ".github/workflows/folia-image.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "deploy/folia/**"
+      - ".github/workflows/folia-image.yml"
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: bs10081/folia-web
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read Folia pin
+        id: pin
+        run: |
+          folia_commit=$(tr -d '[:space:]' < deploy/folia/FOLIA_COMMIT)
+          if ! printf '%s' "$folia_commit" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::deploy/folia/FOLIA_COMMIT must be a full 40-char commit SHA"
+            exit 1
+          fi
+          dockerfile_default=$(sed -n 's/^ARG FOLIA_COMMIT=\([0-9a-f]*\).*$/\1/p' deploy/folia/Dockerfile | head -1)
+          if [ "$folia_commit" != "$dockerfile_default" ]; then
+            echo "::error::FOLIA_COMMIT mismatch: FOLIA_COMMIT file=$folia_commit, Dockerfile ARG default=$dockerfile_default"
+            exit 1
+          fi
+          echo "folia_commit=$folia_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Folia web image
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/folia
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.source=https://github.com/chthollyphile/folia-major
+            org.opencontainers.image.revision=${{ steps.pin.outputs.folia_commit }}
+            org.opencontainers.image.licenses=AGPL-3.0
+          build-args: |
+            FOLIA_COMMIT=${{ steps.pin.outputs.folia_commit }}
+          cache-from: type=gha,scope=folia-web
+          cache-to: type=gha,mode=max,scope=folia-web

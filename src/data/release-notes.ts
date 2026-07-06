@@ -1,6 +1,36 @@
 import type { ReleaseNotesEntry } from "../types/index.ts";
 
 const fallbackReleaseNotesByVersion: Record<string, ReleaseNotesEntry> = {
+  "0.10.0": {
+    version: "0.10.0",
+    title: "一鍵部署:Bot + Folia 歌詞頁",
+    publishedAt: "2026-07-05",
+    status: "preview",
+    summary:
+      "docker compose up -d 一次啟動點歌機與網頁版 Folia 歌詞視覺化;其他人用瀏覽器開主機 8080 就能遠端看同步歌詞,免安裝任何東西。",
+    sections: [
+      {
+        category: "added",
+        title: "Folia 歌詞頁容器",
+        description: "新增 folia-web 服務,打包補丁版 Folia web 與反向代理。",
+        items: [
+          "Folia web 建置時打補丁:WS 與進度查詢網址改為依頁面來源推導,遠端瀏覽器不再連到自己的 localhost。",
+          "nginx 反代 /api/ws/lyric 與 /api/query/progress 到 bot 的 9863,開 8080 即自動連上歌詞串流,Now Playing 預設開啟。",
+          "Folia 版本以 commit SHA 固定(deploy/folia/FOLIA_COMMIT),上游漂移時建置直接失敗,升級是刻意動作。",
+          "新增 folia-image.yml CI,預建多架構映像 bs10081/folia-web 推上 Docker Hub;另附 docker-compose.build.yml 供現場建置。",
+        ],
+      },
+      {
+        category: "changed",
+        title: "Compose 一鍵化與 macOS 音訊",
+        description: "docker-compose.yml 預設啟用 Folia bridge 並發布 9863。",
+        items: [
+          "bot 服務預設 FOLIA_BRIDGE=true、FOLIA_HOST=0.0.0.0,並發布 9863 供區網 Folia Electron 版直連(協定無認證,勿暴露公網)。",
+          "新增 docker-compose.macos.yml:Docker Desktop 無 /dev/snd,改用 PulseAudio over TCP 把聲音送回 macOS 主機。",
+        ],
+      },
+    ],
+  },
   "0.9.1": {
     version: "0.9.1",
     title: "跨曲響度正規化與前端記憶體優化",

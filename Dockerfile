@@ -86,5 +86,7 @@ LABEL org.opencontainers.image.version="${APP_VERSION}"
 LABEL org.opencontainers.image.revision="${APP_GIT_SHA}"
 
 EXPOSE 3000
+# Folia bridge（FOLIA_BRIDGE=true 時啟用）
+EXPOSE 9863
 
 CMD ["bun", "run", "dist/index.js"]

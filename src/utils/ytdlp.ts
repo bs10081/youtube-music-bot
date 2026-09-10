@@ -1,7 +1,7 @@
 import { accessSync, constants, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-const DEFAULT_EXTRACTOR_ARGS = "youtube:player_client=android_vr";
+const DEFAULT_EXTRACTOR_ARGS = "youtube:player_client=default";
 const DEFAULT_COMMAND_TIMEOUT_MS = 45_000;
 const NON_DRC_AUDIO_FORMAT_SELECTOR =
   "bestaudio[format_id!$=-drc]/bestaudio/best";
@@ -38,10 +38,13 @@ export function getYtDlpExecutable(): string {
 }
 
 export function getYtDlpExtractorArgs(): string {
-  return (
-    normalizeEnvValue(process.env.YTDLP_EXTRACTOR_ARGS) ??
-    DEFAULT_EXTRACTOR_ARGS
-  );
+  const configured = normalizeEnvValue(process.env.YTDLP_EXTRACTOR_ARGS);
+  // Older Compose deployments retain this retired profile after an image update.
+  // Migrate only the old exact default; preserve deliberate custom profiles.
+  if (configured === "youtube:player_client=android_vr") {
+    return DEFAULT_EXTRACTOR_ARGS;
+  }
+  return configured ?? DEFAULT_EXTRACTOR_ARGS;
 }
 
 export function getYtDlpCommandTimeoutMs(): number {
@@ -172,6 +175,7 @@ export function probeYtDlpRuntime(): YtDlpRuntimeProbe {
   const probe = spawnSync(executable, ["--version"], {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
+    timeout: 5000,
   });
   const base = {
     executable,

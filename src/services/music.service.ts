@@ -1605,10 +1605,8 @@ class MusicService {
   /**
    * 獲取直接串流 URL
    *
-   * 注意：由於 YouTube API 問題 (GitHub Issue #1123)，目前無法獲取直接 URL。
-   * 此方法會嘗試提取，失敗後由 queue.service.ts 的 fallback 機制處理（使用 yt-dlp）。
-   *
-   * @see https://github.com/LuanRT/YouTube.js/issues/1123
+   * 使用 yt-dlp 解析音訊，保留快取與相同影片的併發去重。
+   * 若直連播放失敗，queue.service.ts 再改由 mpv ytdl hook 重新解析。
    */
   async getStreamUrl(videoId: string): Promise<StreamUrlResult> {
     const cachedEntry = this.streamUrlCache.get(videoId);
@@ -1644,94 +1642,13 @@ class MusicService {
   }
 
   private async extractStreamUrl(videoId: string): Promise<StreamUrlResult> {
-    log.info("Attempting stream URL extraction", { videoId });
-
-    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-    try {
-      const yt = await getClient();
-
-      // 嘗試 getStreamingData（應該返回已解密的 URL）
-      try {
-        const format = await yt.getStreamingData(videoId, {
-          type: "audio",
-          quality: "best",
-        });
-
-        const formatAny = format as any;
-        if (formatAny?.url && formatAny.url.length > 0) {
-          log.info("Stream URL obtained", {
-            bitrate: formatAny.bitrate,
-            urlLength: formatAny.url.length,
-            source: "youtubei",
-          });
-          return {
-            url: formatAny.url,
-            source: "youtubei",
-            bitrate: formatAny.bitrate,
-          };
-        }
-
-        log.warn("youtubei.js getStreamingData returned no direct URL", {
-          videoId,
-          hasFormat: Boolean(formatAny),
-          hasCipher: Boolean(formatAny?.cipher || formatAny?.signature_cipher),
-          itag: formatAny?.itag,
-          mimeType: formatAny?.mime_type ?? formatAny?.mimeType,
-        });
-      } catch (e) {
-        log.warn("youtubei.js getStreamingData failed", {
-          error: e instanceof Error ? e.message : String(e),
-          errorName: e instanceof Error ? e.name : typeof e,
-          videoId,
-        });
-      }
-
-      // Fallback: getInfo + chooseFormat
-      const info = await yt.getInfo(videoId);
-      const format = info.chooseFormat({ type: "audio", quality: "best" });
-
-      if (format?.url) {
-        const url = yt.session?.player?.decipher
-          ? await yt.session.player.decipher(format.url)
-          : format.url;
-
-        if (url && url.length > 0) {
-          log.info("Stream URL obtained via chooseFormat", {
-            bitrate: format.bitrate,
-            source: "youtubei",
-          });
-          return {
-            url,
-            source: "youtubei",
-            bitrate: format.bitrate,
-          };
-        }
-      }
-
-      log.warn("youtubei.js chooseFormat returned no direct URL", {
-        videoId,
-        hasFormat: Boolean(format),
-        hasCipher: Boolean(
-          (format as any)?.cipher || (format as any)?.signature_cipher,
-        ),
-        itag: format?.itag,
-        mimeType: (format as any)?.mime_type ?? (format as any)?.mimeType,
-      });
-      throw new Error("No suitable audio stream found");
-    } catch (error) {
-      log.warn("Primary stream extraction failed, trying yt-dlp CLI fallback", {
-        error: error instanceof Error ? error.message : String(error),
-        errorName: error instanceof Error ? error.name : typeof error,
-        videoId,
-      });
-
-      const fallbackUrl = await this.getStreamUrlViaYtDlp(youtubeUrl);
-      return {
-        url: fallbackUrl,
-        source: "yt-dlp",
-      };
-    }
+    // youtubei.js is used for metadata/search, not remote player-script evaluation.
+    // Let the maintained yt-dlp extractor choose a working YouTube client.
+    log.info("Extracting stream URL via yt-dlp", { videoId });
+    const url = await this.getStreamUrlViaYtDlp(
+      `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
+    );
+    return { url, source: "yt-dlp" };
   }
 
   private async getStreamUrlViaYtDlp(url: string): Promise<string> {

@@ -337,6 +337,23 @@ describe("PlayerService - seek functionality", () => {
   });
 
   describe("playback confirmation", () => {
+    test("should forward YTDLP_PATH to the mpv hook", () => {
+      const previousPath = process.env.YTDLP_PATH;
+      process.env.YTDLP_PATH = "/opt/bin/yt-dlp-custom";
+      try {
+        const session = { ...createSession({} as ChildProcess), source: { type: "youtube", value: "dQw4w9WgXcQ" } };
+        const player = playerService as unknown as {
+          buildMpvArgs: (session: unknown, options: { volume: number; startPaused: boolean }) => string[];
+        };
+        expect(player.buildMpvArgs(session, { volume: 70, startPaused: false })).toContain(
+          "--script-opts-append=ytdl_hook-ytdl_path=/opt/bin/yt-dlp-custom",
+        );
+      } finally {
+        if (previousPath === undefined) delete process.env.YTDLP_PATH;
+        else process.env.YTDLP_PATH = previousPath;
+      }
+    });
+
     test("should use the supported mpv volume-max option", () => {
       const fakeProcess = {} as ChildProcess;
       const session = createSession(fakeProcess);
@@ -443,6 +460,110 @@ describe("PlayerService - seek functionality", () => {
       player.activeSession = null;
       player.standbySession = null;
     });
+
+    test("should reject playback when confirmation times out without media progress", async () => {
+      const session = { ...createSession({} as ChildProcess), ready: false };
+      const player = playerService as unknown as {
+        playbackConfirmationTimeoutMs: number;
+        beginSessionConfirmation: (
+          session: TestSession, mode: "playback",
+          settle: (ready: boolean) => void, reject: (error: Error) => void,
+        ) => void;
+      };
+      stubMethod(player, "playbackConfirmationTimeoutMs", 5);
+      const settle = mock((_ready: boolean) => {});
+      const reject = mock((_error: Error) => {});
+      player.beginSessionConfirmation(session, "playback", settle, reject);
+      await waitFor(30);
+      expect(settle).not.toHaveBeenCalled();
+      expect(reject).toHaveBeenCalledTimes(1);
+      expect(reject.mock.calls[0]?.[0].message).toContain("Timed out waiting for playback");
+      expect(session.ready).toBe(false);
+    });
+
+    test("should not confirm active playback from file-loaded alone", () => {
+      const session = { ...createSession({} as ChildProcess), ready: false };
+      const player = playerService as unknown as {
+        beginSessionConfirmation: (
+          session: TestSession, mode: "playback" | "preload",
+          settle: (ready: boolean) => void, reject: (error: Error) => void,
+        ) => void;
+        handleIpcMessage: (session: TestSession, data: string) => void;
+        clearSessionConfirmation: (session: TestSession) => void;
+      };
+      const settle = mock((_ready: boolean) => {});
+      player.beginSessionConfirmation(session, "playback", settle, () => {});
+      try {
+        player.handleIpcMessage(session, '{"event":"file-loaded"}\n');
+        expect(settle).not.toHaveBeenCalled();
+        player.handleIpcMessage(session, '{"event":"property-change","name":"time-pos","data":0.1}\n');
+        expect(settle).toHaveBeenCalledWith(true);
+      } finally {
+        player.clearSessionConfirmation(session);
+      }
+    });
+
+    test("should reject an mpv load error immediately instead of waiting for progress", () => {
+      const session = { ...createSession({} as ChildProcess), ready: false };
+      const player = playerService as unknown as {
+        beginSessionConfirmation: (
+          session: TestSession, mode: "playback",
+          settle: (ready: boolean) => void, reject: (error: Error) => void,
+        ) => void;
+        handleIpcMessage: (session: TestSession, data: string) => void;
+        clearSessionConfirmation: (session: TestSession) => void;
+      };
+      const settle = mock((_ready: boolean) => {});
+      const reject = mock((_error: Error) => {});
+      player.beginSessionConfirmation(session, "playback", settle, reject);
+      try {
+        player.handleIpcMessage(session, '{"event":"end-file","reason":"error","file_error":"loading failed"}\n');
+        expect(settle).not.toHaveBeenCalled();
+        expect(reject).toHaveBeenCalledTimes(1);
+        expect(reject.mock.calls[0]?.[0].message).toContain("mpv failed to load media");
+      } finally {
+        player.clearSessionConfirmation(session);
+      }
+    });
+
+    test("should preserve IPC JSON split across socket chunks", () => {
+      const session = { ...createSession({} as ChildProcess), ready: false };
+      const player = playerService as unknown as {
+        beginSessionConfirmation: (
+          session: TestSession, mode: "playback",
+          settle: (ready: boolean) => void, reject: (error: Error) => void,
+        ) => void;
+        handleIpcMessage: (session: TestSession, data: string) => void;
+        clearSessionConfirmation: (session: TestSession) => void;
+      };
+      const settle = mock((_ready: boolean) => {});
+      player.beginSessionConfirmation(session, "playback", settle, () => {});
+      try {
+        player.handleIpcMessage(session, '{"event":"property-change","name":"time-');
+        expect(settle).not.toHaveBeenCalled();
+        player.handleIpcMessage(session, 'pos","data":0.1}\n');
+        expect(settle).toHaveBeenCalledWith(true);
+      } finally {
+        player.clearSessionConfirmation(session);
+      }
+    });
+
+    for (const exitCode of [0, null]) {
+      test(`rejects an unconfirmed session even on early exit ${exitCode}`, () => {
+        const session = { ...createSession({} as ChildProcess), ready: false };
+        const player = playerService as unknown as {
+          handleSessionExit: (
+            session: TestSession, code: number | null, signal: NodeJS.Signals | null,
+            settle: (ready: boolean) => void, reject: (error: Error) => void,
+          ) => void;
+        };
+        const settle = mock((_ready: boolean) => {});
+        const reject = mock((_error: Error) => {});
+        player.handleSessionExit(session, exitCode, exitCode === null ? "SIGKILL" : null, settle, reject);
+        expect(settle).not.toHaveBeenCalled();
+        expect(reject).toHaveBeenCalledTimes(1);
+      });
+    }
 
     test("should wait for a positive time-pos before confirming playback", () => {
       const fakeProcess = {

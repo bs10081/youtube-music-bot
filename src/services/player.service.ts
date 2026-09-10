@@ -1,7 +1,7 @@
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { connect, type Socket } from "node:net";
 import { log } from "../utils/logger.ts";
-import { getMpvYtdlRawOptions } from "../utils/ytdlp.ts";
+import { getMpvYtdlRawOptions, getYtDlpExecutable } from "../utils/ytdlp.ts";
 import { getMpvExecutable } from "../utils/runtime-dependencies.ts";
 
 export type PlayerEventCallback = (event: {
@@ -33,6 +33,7 @@ type PlayerSession = {
   duration: number | null;
   process: ChildProcess;
   ipcSocket: Socket | null;
+  ipcBuffer?: string;
   ipcPath: string;
   ipcConnectRetries: number;
   eofHandled: boolean;
@@ -55,7 +56,7 @@ const VOLUME_NORMALIZATION_FILTER =
 
 class PlayerService {
   private static instance: PlayerService;
-  private readonly playbackConfirmationTimeoutMs = 2500;
+  private readonly playbackConfirmationTimeoutMs = 30_000;
   private readonly preloadConfirmationTimeoutMs = 12000;
   private readonly maxIpcRetries = 60;
   private activeSession: PlayerSession | null = null;
@@ -210,6 +211,7 @@ class PlayerService {
     ];
 
     if (session.source.type === "youtube") {
+      mpvArgs.push(`--script-opts-append=ytdl_hook-ytdl_path=${getYtDlpExecutable()}`);
       const ytdlRawOptions = getMpvYtdlRawOptions();
       if (ytdlRawOptions.length > 0) {
         mpvArgs.push(`--ytdl-raw-options=${ytdlRawOptions.join(",")}`);
@@ -273,11 +275,10 @@ class PlayerService {
 
     const timer = setTimeout(() => {
       if (mode === "playback") {
-        log.info("Playback confirmation timeout elapsed; treating playback as started", {
-          timeoutMs: this.playbackConfirmationTimeoutMs,
-          sessionId: session.id,
-        });
-        this.resolveSessionConfirmation(session, true);
+        this.rejectSessionConfirmation(
+          session,
+          new Error(`Timed out waiting for playback progress for session ${session.id}`),
+        );
         return;
       }
 
@@ -543,7 +544,8 @@ class PlayerService {
   }
 
   private handleIpcMessage(session: PlayerSession, data: string): void {
-    const lines = data.trim().split("\n");
+    const lines = `${session.ipcBuffer ?? ""}${data}`.split("\n");
+    session.ipcBuffer = lines.pop() ?? "";
 
     log.debug("IPC message received", {
       rawData: data.substring(0, 200),
@@ -564,7 +566,14 @@ class PlayerService {
         });
 
         if (message.event === "file-loaded") {
-          this.resolveSessionConfirmation(session, true);
+          if (session.confirmation?.mode === "preload") {
+            this.resolveSessionConfirmation(session, true);
+          }
+          continue;
+        }
+
+        if (message.event === "end-file" && message.reason === "error") {
+          this.rejectSessionConfirmation(session, new Error("mpv failed to load media"));
           continue;
         }
 
@@ -763,17 +772,12 @@ class PlayerService {
         reject(error);
       };
 
+      // Arm before connecting: observe_property can deliver progress immediately.
+      this.beginSessionConfirmation(session, options.confirmMode, settleReady, rejectReady);
       const ipcDelay = process.platform === "win32" ? 500 : 200;
       setTimeout(() => {
+        if (!this.isTrackedSession(session)) return;
         this.connectSessionIpc(session)
-          .then(() => {
-            this.beginSessionConfirmation(
-              session,
-              options.confirmMode,
-              settleReady,
-              rejectReady,
-            );
-          })
           .catch((error) => {
             if (!this.isTrackedSession(session)) {
               log.debug("Skipping IPC connection failure for untracked session", {
@@ -786,7 +790,7 @@ class PlayerService {
             }
 
             log.error(
-              "Failed to connect IPC - playback will continue without state sync",
+              "Failed to connect IPC - playback cannot be confirmed",
               {
                 error: error.message,
                 sessionId: session.id,
@@ -795,11 +799,7 @@ class PlayerService {
               },
             );
 
-            if (options.confirmMode === "playback") {
-              settleReady(true);
-              return;
-            }
-
+            this.rejectSessionConfirmation(session, error);
             this.stopSpecificSession(session);
             rejectReady(error);
           });
@@ -902,6 +902,12 @@ class PlayerService {
       if (!this.resolveSessionConfirmation(session, false)) {
         settleReady(false);
       }
+      return;
+    }
+
+    if ((code === 0 && !session.ready) || code === null) {
+      const error = new Error(`mpv exited before playback was confirmed (${code ?? signal ?? "unknown"})`);
+      if (!this.rejectSessionConfirmation(session, error)) rejectReady(error);
       return;
     }
 

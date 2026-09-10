@@ -3,7 +3,7 @@ import { log } from "./logger.ts";
 import { probeYtDlpRuntime } from "./ytdlp.ts";
 
 type RuntimeDependency = {
-  name: "mpv";
+  name: "mpv" | "deno";
   executable: string;
   required: boolean;
   purpose: string;
@@ -24,6 +24,7 @@ export type YtDlpDependencyProbeResult = DependencyProbeResult & {
 
 export type RuntimeDependencyStatus = {
   mpv: DependencyProbeResult;
+  deno: DependencyProbeResult;
   ytDlp: YtDlpDependencyProbeResult;
 };
 
@@ -40,6 +41,7 @@ function probeExecutable(executable: string): DependencyProbeResult {
   const result = spawnSync(executable, ["--version"], {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
+    timeout: 5000,
   });
 
   if (result.error) {
@@ -77,6 +79,7 @@ export function getRuntimeDependencyStatus(): RuntimeDependencyStatus {
 
   return {
     mpv,
+    deno: probeExecutable("deno"),
     ytDlp: {
       available: ytDlp.available,
       executable: ytDlp.executable,
@@ -91,6 +94,7 @@ export function getRuntimeDependencyStatus(): RuntimeDependencyStatus {
 
 export function logRuntimeDependencyStatus(): void {
   const dependencies: RuntimeDependency[] = [
+    { name: "deno", executable: "deno", required: true, purpose: "YouTube JavaScript challenges (EJS)" },
     {
       name: "mpv",
       executable: getMpvExecutable(),
@@ -133,16 +137,16 @@ export function logRuntimeDependencyStatus(): void {
       dependency: "yt-dlp",
       executable: ytDlp.executable,
       version: ytDlp.version,
-      purpose: "YouTube fallback extraction",
+      purpose: "YouTube stream extraction",
       extractorArgs: ytDlp.extractorArgs,
       cookiesConfigured: ytDlp.cookiesConfigured,
       cookiesReadable: ytDlp.cookiesReadable,
     });
   } else {
-    log.warn("Optional runtime dependency missing", {
+    log.error("Required runtime dependency missing", {
       dependency: "yt-dlp",
       executable: ytDlp.executable,
-      purpose: "YouTube fallback extraction",
+      purpose: "YouTube stream extraction",
       error: ytDlp.error,
       extractorArgs: ytDlp.extractorArgs,
       cookiesConfigured: ytDlp.cookiesConfigured,

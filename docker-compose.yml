@@ -15,7 +15,7 @@ services:
       - NODE_ENV=production
       - LOG_LEVEL=INFO
       - SYNC_STATE_DB_PATH=/data/sync-state.sqlite
-      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr
+      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=default
       - FOLIA_BRIDGE=true
       - FOLIA_HOST=0.0.0.0 # 容器內須綁非 loopback，folia-web 的 nginx 才能反代
       # 如果生產 IP 被 YouTube 要求人類驗證，掛載 cookies 檔後取消註解：

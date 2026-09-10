@@ -19,6 +19,8 @@ youtube-music-cli-explore
 
 # Claude 相關
 .claude
+.hermes
+secrets
 
 # IDE
 .vscode

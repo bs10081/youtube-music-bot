@@ -1,8 +1,11 @@
 # 多階段構建
 # Stage 1: 構建前端
-ARG APP_VERSION=0.8.0
+ARG APP_VERSION
 ARG APP_GIT_SHA=dev
-ARG YTDLP_VERSION=2026.03.17
+ARG YTDLP_VERSION=2026.08.19
+
+# Official multi-architecture Deno binary; no runtime download/evaluation installer.
+FROM denoland/deno:bin-2.9.6@sha256:4cf0029b9aeeeed5efcbb71828737f0d7c8c8a20072df960e51a5679ef0d21ba AS deno-runtime
 
 FROM node:20-slim AS frontend-builder
 ARG APP_VERSION
@@ -22,7 +25,7 @@ WORKDIR /app/frontend
 RUN npm run build
 
 # Stage 2: 構建後端
-FROM oven/bun:1 AS backend-builder
+FROM oven/bun:1.3.14 AS backend-builder
 ARG APP_VERSION
 ARG APP_GIT_SHA
 WORKDIR /app
@@ -32,11 +35,12 @@ ENV APP_GIT_SHA=${APP_GIT_SHA}
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY src/ ./src/
+COPY scripts/check-playback.ts ./scripts/check-playback.ts
 COPY tsconfig.json ./
-RUN bun build src/index.ts --outdir dist --target bun
+RUN bun run build
 
 # Stage 3: 最終映像
-FROM oven/bun:1-slim
+FROM oven/bun:1.3.14-slim
 ARG APP_VERSION
 ARG APP_GIT_SHA
 ARG YTDLP_VERSION
@@ -58,14 +62,17 @@ RUN set -euxo pipefail; \
       armv7l|armhf) ytdlp_asset="yt-dlp_linux_armv7l" ;; \
       *) echo "Unsupported architecture for yt-dlp binary: $arch" >&2; exit 1 ;; \
     esac; \
-    curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${ytdlp_asset}" -o /usr/local/bin/yt-dlp; \
-    curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/SHA2-256SUMS" -o /tmp/yt-dlp-SHA2-256SUMS; \
+    curl -fSL --retry 3 "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${ytdlp_asset}" -o /usr/local/bin/yt-dlp; \
+    curl -fSL --retry 3 "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/SHA2-256SUMS" -o /tmp/yt-dlp-SHA2-256SUMS; \
     expected_sha="$(awk -v asset="$ytdlp_asset" '$2 == asset || $2 == "*"asset {print $1}' /tmp/yt-dlp-SHA2-256SUMS)"; \
     test -n "$expected_sha"; \
     echo "${expected_sha}  /usr/local/bin/yt-dlp" | sha256sum -c -; \
     rm /tmp/yt-dlp-SHA2-256SUMS; \
     chmod +x /usr/local/bin/yt-dlp; \
     yt-dlp --version
+
+COPY --from=deno-runtime /deno /usr/local/bin/deno
+RUN deno --version && yt-dlp --version && mpv --version
 
 # 複製構建產物
 COPY --from=backend-builder /app/dist ./dist

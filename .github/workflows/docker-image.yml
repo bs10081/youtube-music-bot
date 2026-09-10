@@ -14,9 +14,21 @@ on:
 env:
   IMAGE_NAME: bs10081/youtube-music-bot
 
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: write
+
   docker:
+    needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -47,6 +59,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=${{ steps.build_meta.outputs.app_version }},enable={{is_default_branch}}
             type=sha,prefix=sha-
 
       - name: Log in to Docker Hub

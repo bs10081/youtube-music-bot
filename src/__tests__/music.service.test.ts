@@ -421,7 +421,7 @@ describe("MusicService mix normalization", () => {
     expect(first).toEqual(second);
   });
 
-  test("should fall back to yt-dlp when youtubei.js stream extraction fails", async () => {
+  test("should extract audio without initializing the youtubei decipher runtime", async () => {
     const musicService = getMusicService() as unknown as {
       getStreamUrl: (videoId: string) => Promise<StreamUrlResult>;
       runYtDlpCommand: (
@@ -429,20 +429,11 @@ describe("MusicService mix normalization", () => {
       ) => Promise<{ stdout: string; stderr: string }>;
     };
 
-    stubMethod(Innertube, "create", (async () => ({
-      session: { player: {} },
-      getStreamingData: async () => {
-        throw new Error("No valid URL to decipher");
-      },
-      getInfo: async () => ({
-        chooseFormat: () => ({
-          itag: 140,
-          bitrate: 128000,
-          mime_type: "audio/mp4",
-          signature_cipher: "cipher",
-        }),
-      }),
-    })) as unknown as typeof Innertube.create);
+    let youtubeiInitializations = 0;
+    stubMethod(Innertube, "create", (async () => {
+      youtubeiInitializations += 1;
+      throw new Error("No evaluator is configured for youtubei decipher");
+    }) as unknown as typeof Innertube.create);
     stubMethod(
       musicService,
       "runYtDlpCommand",
@@ -454,6 +445,7 @@ describe("MusicService mix normalization", () => {
     );
 
     const result = await musicService.getStreamUrl("fallback-track");
+    expect(youtubeiInitializations).toBe(0);
 
     expect(result).toEqual({
       url: "https://rr.example.com/audio.webm",

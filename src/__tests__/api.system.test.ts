@@ -57,6 +57,7 @@ describe("/api/system/info", () => {
         buildVersion: string;
         environment: string;
         runtimeDependencies: {
+          deno: { available: boolean; executable: string };
           mpv: {
             available: boolean;
             executable: string;
@@ -81,6 +82,8 @@ describe("/api/system/info", () => {
     expect(payload.data.gitSha).toBeTruthy();
     expect(payload.data.buildVersion).toContain(payload.data.appVersion);
     expect(payload.data.environment).toBeTruthy();
+    expect(payload.data.runtimeDependencies.deno.executable).toBeTruthy();
+    expect(typeof payload.data.runtimeDependencies.deno.available).toBe("boolean");
     expect(payload.data.runtimeDependencies.mpv.executable).toBeTruthy();
     expect(payload.data.runtimeDependencies.ytDlp.executable).toBeTruthy();
     expect(payload.data.runtimeDependencies.ytDlp.extractorArgs).toBeTruthy();

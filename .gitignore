@@ -31,5 +31,7 @@ Thumbs.db
 .data/
 .codex/
 .claude/
+.hermes/
+secrets/
 youtube-music-bot-arm64.tar
 youtube-music-cli-explore/

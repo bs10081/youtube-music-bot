@@ -8,6 +8,7 @@ import {
   getYtDlpCookiesStatus,
   getYtDlpExecutable,
   getYtDlpExtractorArgs,
+  getYtDlpMetadataArgs,
   parseYtDlpStreamUrlOutput,
 } from "../utils/ytdlp.ts";
 
@@ -46,11 +47,34 @@ describe("yt-dlp utilities", () => {
   test("should use default extractor args unless overridden", () => {
     delete process.env.YTDLP_EXTRACTOR_ARGS;
 
-    expect(getYtDlpExtractorArgs()).toBe("youtube:player_client=android_vr");
+    expect(getYtDlpExtractorArgs()).toBe("youtube:player_client=default");
 
     process.env.YTDLP_EXTRACTOR_ARGS = "youtube:player_client=web";
 
     expect(getYtDlpExtractorArgs()).toBe("youtube:player_client=web");
+  });
+
+  test("should migrate the retired profile from existing containers on every extraction path", () => {
+    process.env.YTDLP_EXTRACTOR_ARGS = " youtube:player_client=android_vr ";
+    delete process.env.YTDLP_COOKIES_FILE;
+
+    expect(getYtDlpExtractorArgs()).toBe("youtube:player_client=default");
+    for (const args of [
+      getYtDlpCliArgs("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+      getYtDlpMetadataArgs("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    ]) {
+      expect(args[args.indexOf("--extractor-args") + 1]).toBe(
+        "youtube:player_client=default",
+      );
+    }
+    expect(getMpvYtdlRawOptions()).toEqual([
+      "extractor-args=[youtube:player_client=default]",
+    ]);
+  });
+
+  test("should preserve deliberate custom client settings", () => {
+    process.env.YTDLP_EXTRACTOR_ARGS = "youtube:player_client=web,default;skip=hls";
+    expect(getYtDlpExtractorArgs()).toBe("youtube:player_client=web,default;skip=hls");
   });
 
   test("should report cookies file readability", () => {

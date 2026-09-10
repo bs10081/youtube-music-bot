@@ -22,17 +22,17 @@
 
 1. 前端透過 `POST /api/queue`、`POST /api/mix` 或 radio 補歌，把 `Track` 送進 `QueueService`
 2. `QueueService.playNext()` 取出下一首歌，先呼叫 `MusicService.getStreamUrl(videoId)`
-3. `MusicService.getStreamUrl()` 先嘗試 `youtubei.js`
-4. 如果 `youtubei.js` 拿不到有效 audio URL，會 fallback 到 `yt-dlp -g`
+3. `MusicService.getStreamUrl()` 使用 `yt-dlp -g`，交由上游選擇可用的 YouTube client
+4. `youtubei.js` 負責搜尋、歌詞與中繼資料；不執行未提供隔離 evaluator 的 direct decipher
 5. 後端拿到最終的直連音訊 URL 後，呼叫 `PlayerService.playUrl()`
 6. `PlayerService` 啟動 `mpv --no-video` 播放該 URL，並透過 mpv IPC 監聽進度、暫停、EOF
 7. 如果直連 URL 播放失敗，才退回 `PlayerService.play(videoId)`，讓 mpv 自己處理 YouTube URL
 
 ### 為什麼這樣設計
 
-- `youtubei.js` 理論上最快，因為不需要額外啟動 CLI
-- `yt-dlp -g` 在實務上更抗 YouTube 的 bot 判定，尤其在樹莓派或家用網路 IP 上
-- `mpv` 直開 YouTube URL 仍保留作最後保底，避免單一路徑失效時完全不能播
+- `yt-dlp` 維護 client 與 JavaScript challenge 支援，Docker 內含 Deno/EJS；不用失效的固定 client。
+- mpv 直開 YouTube URL 會重新解析來源，可處理 direct URL 過期等情況，但不是獨立的上游備援。
+- `yt-dlp -g` 成功只代表取得 URL；播放成功必須有 mpv 的實際時間進度。IPC、載入錯誤或 30 秒內沒有進度都會回報失敗。
 
 ### 關鍵服務責任
 
@@ -50,14 +50,34 @@
 可以透過環境變數調整 `yt-dlp` 行為：
 
 ```bash
-YTDLP_EXTRACTOR_ARGS="youtube:player_client=android_vr"
+YTDLP_EXTRACTOR_ARGS="youtube:player_client=default"
 YTDLP_COOKIES_FILE="/app/secrets/youtube-cookies.txt"
 ```
 
 - `YTDLP_EXTRACTOR_ARGS`
-  用來指定 YouTube extractor profile，預設為 `youtube:player_client=android_vr`
+  用來指定 YouTube extractor profile，預設為 `youtube:player_client=default`
 - `YTDLP_COOKIES_FILE`
   當 YouTube 對目前 IP 要求人類驗證時，可掛入已登入帳號匯出的 cookies 檔
+
+### 升級 0.11.1 與播放驗證
+
+根因、修復與驗證紀錄：[播放故障報告](docs/reports/2026-09-10-playback-root-cause.md)。
+
+- Docker 固定 yt-dlp `2026.08.19`、Deno `2.9.6`；本機也需安裝 yt-dlp、Deno、mpv（macOS：`brew install yt-dlp deno mpv`）。
+- 舊容器的 `YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr` 會自動遷移為 `default`；請仍更新 Compose／環境檔。其他明確自訂參數保持不變。
+- 查看 `/api/system/info` 的有效 extractor args、yt-dlp／Deno／mpv 狀態；`/api/health` 僅代表服務存活。
+- 網路 smoke test 會請求少量媒體並無聲解碼約 3 秒，不儲存媒體，也不代表實際喇叭已出聲。
+
+```bash
+# 原始碼環境（先 bun install）
+bun run check:playback dQw4w9WgXcQ D2HoBIh3zJ4 jNQXAC9IVRw
+
+# 容器：必須在生產相同出口 IP 測試
+docker compose exec -T youtube-music-bot \
+  bun run dist/check-playback.js dQw4w9WgXcQ D2HoBIh3zJ4 jNQXAC9IVRw
+```
+
+公開影片可能日後被下架，測試失敗時先區分影片不可用、HTTP 403、缺少 JS runtime 與 mpv 解碼錯誤。
 
 ### Folia Now Playing bridge（選配）
 
@@ -300,7 +320,7 @@ services:
       - NODE_ENV=production
       - LOG_LEVEL=INFO
       - SYNC_STATE_DB_PATH=/data/sync-state.sqlite
-      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr
+      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=default
     volumes:
       - sync-state:/data
 
@@ -332,7 +352,7 @@ services:
     volumes:
       - ./secrets:/app/secrets:ro
     environment:
-      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr
+      - YTDLP_EXTRACTOR_ARGS=youtube:player_client=default
       - YTDLP_COOKIES_FILE=/app/secrets/youtube-cookies.txt
 ```
 
@@ -566,11 +586,11 @@ environment:
 ```bash
 docker compose exec -T youtube-music-bot \
   yt-dlp --no-warnings --no-playlist -g -f bestaudio/best \
-  --extractor-args "youtube:player_client=android_vr" \
+  --extractor-args "youtube:player_client=default" \
   "https://www.youtube.com/watch?v=D2HoBIh3zJ4"
 ```
 
-如果這裡能拿到 `googlevideo.com` 的 URL，代表 `yt-dlp` fallback 仍然可用，問題通常不在最底層連線。
+拿到 `googlevideo.com` URL **不代表可播放**，舊 client 可能產生 HTTP 403 的 URL。請接著執行 `bun run dist/check-playback.js <VIDEO_ID>`（容器內），確認媒體 HTTP Range 與 mpv 解碼皆通過；不要把 signed URL 貼進公開日誌。
 
 如果這裡也失敗：
 
@@ -583,11 +603,7 @@ docker compose exec -T youtube-music-bot \
 
 這通常是 `youtubei.js` 這條路拿不到可用 audio format。
 
-這不一定是致命錯誤，因為系統會自動 fallback 到 `yt-dlp -g`。真正要看的不是這一行本身，而是後面有沒有：
-
-- `Primary stream extraction failed, trying yt-dlp CLI fallback`
-- `Stream URL obtained via yt-dlp CLI`
-- `Playback started successfully via direct stream URL`
+這是 0.11.0 以前的 direct decipher 訊息。0.11.1 起抽流直接使用 yt-dlp；若仍看到此訊息，先確認容器的 app version 與 image digest。新版本正常流程會出現 `Extracting stream URL via yt-dlp`、`Stream URL obtained via yt-dlp CLI`，最後收到實際播放進度才會出現 `Playback started successfully via direct stream URL`。
 
 ### 3. `mpv exited with code 2`
 
@@ -659,7 +675,7 @@ docker compose logs --tail=120 youtube-music-bot
 ```bash
 docker compose exec -T youtube-music-bot \
   yt-dlp --no-warnings --no-playlist -g -f bestaudio/best \
-  --extractor-args "youtube:player_client=android_vr" \
+  --extractor-args "youtube:player_client=default" \
   "https://www.youtube.com/watch?v=<VIDEO_ID>"
 ```
 
@@ -674,7 +690,7 @@ docker compose exec -T youtube-music-bot mpv --no-video "<DIRECT_STREAM_URL>"
 你要在 log 中找到這幾個關鍵訊號：
 
 - `Fetching direct stream URL for playback`
-- `Primary stream extraction failed, trying yt-dlp CLI fallback`
+- `Extracting stream URL via yt-dlp`
 - `Stream URL obtained via yt-dlp CLI`
 - `Playback started successfully via direct stream URL`
 
@@ -682,7 +698,7 @@ docker compose exec -T youtube-music-bot mpv --no-video "<DIRECT_STREAM_URL>"
 
 ```yaml
 environment:
-  - YTDLP_EXTRACTOR_ARGS=youtube:player_client=android_vr
+  - YTDLP_EXTRACTOR_ARGS=youtube:player_client=default
   - YTDLP_COOKIES_FILE=/app/secrets/youtube-cookies.txt
 volumes:
   - ./secrets:/app/secrets:ro
@@ -692,9 +708,12 @@ volumes:
 
 專案已提供 GitHub Actions workflow 來自動建置 Docker image：
 
-- `push` 到 `main` 時：自動 build 並 push 到 Docker Hub
-- `pull_request` 時：只驗證 Dockerfile 能不能成功 build，不 push
-- `workflow_dispatch` 時：可手動觸發
+- `push` 到 `main`（以及 `codex/dev`）時：自動觸發。
+- Docker workflow 先呼叫 `ci.yml`；後端型別檢查／測試、前端建置、Dockerfile lint 全部成功，才開始映像建置與發布。
+- 映像平台：`linux/amd64`、`linux/arm64`，目的地為 Docker Hub `bs10081/youtube-music-bot`，不是 GHCR。
+- `pull_request` 指向上述分支時：驗證 CI 與多架構建置，不登入 Docker Hub、不發布。
+- `workflow_dispatch` 可手動觸發；非 main 分支只產生 SHA 標籤，不更新 latest。
+- 真實 YouTube probe 必須另外在目標網路執行，**不把網路／anti-bot 不確定性放入每次 CI 或健康檢查**。
 
 Workflow 檔案位置：
 
@@ -716,8 +735,9 @@ Workflow 檔案位置：
 - `latest`
 - `main`
 - `sha-<commit>`
+- `<package.json.version>`（例如 `0.11.1`）
 
-這樣正式環境可以固定拉 `latest`，也可以針對某次部署鎖定特定 SHA tag。
+版本取自 root `package.json`。目前 Compose 使用 latest 且 Watchtower 每 300 秒檢查，可能自動更新；需要人工控制發布時，改為特定 image digest，並停用該服務的 Watchtower label。Git pull 只更新原始碼，不會更新正在執行的容器設定。
 
 ### 存取 WebUI
 

@@ -1,6 +1,30 @@
 import type { ReleaseNotesEntry } from "../types/index.ts";
 
 const fallbackReleaseNotesByVersion: Record<string, ReleaseNotesEntry> = {
+  "0.11.1": {
+    version: "0.11.1",
+    title: "修復 YouTube 播放與容器抽流相容性",
+    publishedAt: "2026-09-10",
+    status: "preview",
+    summary: "改用 yt-dlp 維護的預設 client、升級抽流依賴與 Deno，修復沒有播放進度卻顯示成功的問題。",
+    sections: [
+      {
+        category: "fixed", title: "播放可靠性",
+        items: [
+          "遷移舊容器的 android_vr 預設設定，避免 YouTube 媒體 URL 回傳 403。",
+          "yt-dlp 負責抽流，youtubei.js 負責搜尋與中繼資料，不執行未隔離的 player JavaScript。",
+          "播放成功需收到實際時間進度；載入錯誤、IPC 失敗及逾時不再回報成功。",
+        ],
+      },
+      {
+        category: "changed", title: "依賴與部署驗證",
+        items: [
+          "更新 yt-dlp 2026.08.19、youtubei.js 18.0.0，Docker 內提供 Deno 2.9.6 與 EJS。",
+          "新增 HTTP Range 與 mpv 解碼 smoke test；Docker 發布前必須通過 CI，新增版本號標籤。",
+        ],
+      },
+    ],
+  },
   "0.11.0": {
     version: "0.11.0",
     title: "音訊輸出切換:WebUI 選擇裝置或跟隨 macOS",

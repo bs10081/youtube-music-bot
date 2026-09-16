@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createId } from "@/utils/createId";
 import type { Track } from "@/types";
 import type {
   FavoriteTrack,
@@ -88,23 +89,27 @@ function normalizeTrack(track: Track): Track {
   };
 }
 
-async function persistSnapshot(
+// Read/modify/write recipes must see the preceding committed snapshot.
+// Sync metadata and user actions can arrive in the same event-loop turn.
+let persistenceChain: Promise<void> = Promise.resolve();
+let initialization: Promise<void> | null = null;
+function persistSnapshot(
   recipe: (snapshot: LibrarySnapshot) => LibrarySnapshot,
   options: { touchUpdatedAt?: boolean } = {},
 ): Promise<void> {
-  const currentSnapshot =
-    useLibraryStore.getState().snapshot ?? createInitialLibrarySnapshot();
-  const nextSnapshot = recipe(currentSnapshot);
-  const shouldTouchUpdatedAt = options.touchUpdatedAt ?? true;
-  const persistedSnapshot = shouldTouchUpdatedAt
-    ? {
-        ...nextSnapshot,
-        updatedAt: new Date().toISOString(),
-      }
-    : nextSnapshot;
-
-  await saveLibrarySnapshot(persistedSnapshot);
-  useLibraryStore.setState({ snapshot: persistedSnapshot, ready: true });
+  const operation = persistenceChain.then(async () => {
+    const currentSnapshot =
+      useLibraryStore.getState().snapshot ?? createInitialLibrarySnapshot();
+    const nextSnapshot = recipe(currentSnapshot);
+    const persistedSnapshot = (options.touchUpdatedAt ?? true)
+      ? { ...nextSnapshot, updatedAt: new Date().toISOString() }
+      : nextSnapshot;
+    await saveLibrarySnapshot(persistedSnapshot);
+    useLibraryStore.setState({ snapshot: persistedSnapshot, ready: true });
+  });
+  // Report this operation's error to its caller without poisoning future writes.
+  persistenceChain = operation.catch(() => {});
+  return operation;
 }
 
 function upsertPlaylist(playlists: Playlist[], playlist: Playlist): Playlist[] {
@@ -200,8 +205,10 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       return;
     }
 
-    const snapshot = await loadLibrarySnapshot();
-    set({ snapshot, ready: true });
+    initialization ??= loadLibrarySnapshot().then((snapshot) => {
+      set({ snapshot, ready: true });
+    }).finally(() => { initialization = null; });
+    await initialization;
   },
   setSyncStatus: (syncStatus, options) =>
     set({
@@ -307,7 +314,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   selectPlaylist: (playlistId) => set({ selectedPlaylistId: playlistId }),
   createPlaylist: async (name) => {
     const playlist: Playlist = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: name.trim() || "未命名歌單",
       tracks: [],
       createdAt: new Date().toISOString(),
@@ -354,7 +361,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
   addTrackToPlaylist: async (playlistId, track) => {
     const entry: PlaylistTrackEntry = {
-      id: crypto.randomUUID(),
+      id: createId(),
       track: normalizeTrack(track),
       addedAt: new Date().toISOString(),
     };
@@ -446,7 +453,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
   addHistoryEntry: async (track) => {
     const entry: HistoryEntry = {
-      id: crypto.randomUUID(),
+      id: createId(),
       track: normalizeTrack(track),
       playedAt: new Date().toISOString(),
     };
@@ -463,7 +470,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
   saveMix: async (seedTrack, tracks) => {
     const savedMix: SavedMix = {
-      id: crypto.randomUUID(),
+      id: createId(),
       seedTrack: normalizeTrack(seedTrack),
       tracks: tracks.map((track) => normalizeTrack(track)),
       createdAt: new Date().toISOString(),

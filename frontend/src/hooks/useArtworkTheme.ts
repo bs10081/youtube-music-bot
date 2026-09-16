@@ -1,5 +1,4 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { Vibrant } from "node-vibrant/browser";
 import { usePlayerStore } from "@/stores/playerStore";
 import { getOptimizedThumbnail, ThumbnailQuality } from "@/utils/thumbnail";
 import {
@@ -186,7 +185,7 @@ async function extractPaletteFromSource(
   source: string,
   useCrossOrigin: boolean,
 ): Promise<ArtworkPalette> {
-  const image = await loadImage(source, useCrossOrigin);
+  const [image, { Vibrant }] = await Promise.all([loadImage(source, useCrossOrigin), import("node-vibrant/browser")]);
 
   return (await Vibrant.from(image)
     .quality(4)

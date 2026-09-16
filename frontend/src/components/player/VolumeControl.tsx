@@ -57,6 +57,7 @@ export const VolumeControl = ({ className }: VolumeControlProps) => {
     >
       <Volume2 className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
       <Slider
+        aria-label="播放音量"
         className="flex-1"
         value={[displayVolume]}
         max={100}

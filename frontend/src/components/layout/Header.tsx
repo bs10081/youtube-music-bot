@@ -98,6 +98,7 @@ const releaseNotesSectionMeta: Record<
 
 interface HeaderProps {
   onSearchClick?: () => void;
+  compact?: boolean;
 }
 
 function parseLocalDate(value: string): Date | null {
@@ -144,7 +145,7 @@ function countReleaseItems(entry: ReleaseNotesEntry): number {
   return entry.sections.reduce((count, section) => count + section.items.length, 0);
 }
 
-export const Header = ({ onSearchClick }: HeaderProps) => {
+export const Header = ({ onSearchClick, compact = false }: HeaderProps) => {
   const desktopMode = useAppUiStore((state) => state.desktopMode);
   const setDesktopMode = useAppUiStore((state) => state.setDesktopMode);
   const [backendInfo, setBackendInfo] = useState<SystemInfoResponse | null>(null);
@@ -340,7 +341,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
 
   return (
     <>
-      <header className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-4 py-2.5 backdrop-blur-xl lg:px-5 lg:py-3">
+      {compact ? renderVersionBadgeButton("listening-version") : <header className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-4 py-2.5 backdrop-blur-xl lg:px-5 lg:py-3">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--app-radius-md)] border border-[color:var(--surface-border)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm">
@@ -412,7 +413,7 @@ export const Header = ({ onSearchClick }: HeaderProps) => {
             {renderVersionBadgeButton("sm:hidden")}
           </div>
         </div>
-      </header>
+      </header>}
 
       <Dialog open={isVersionDialogOpen} onOpenChange={setIsVersionDialogOpen}>
         <DialogContent className="flex max-h-[min(90vh,840px)] w-[calc(100vw-2rem)] max-w-5xl flex-col p-0">

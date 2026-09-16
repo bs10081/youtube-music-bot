@@ -44,6 +44,7 @@ export const ProgressBar = () => {
   return (
     <div className="space-y-4">
       <Slider
+        aria-label="播放進度"
         value={[position]}
         max={duration || 100}
         step={1}

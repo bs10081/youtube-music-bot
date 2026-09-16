@@ -1,4 +1,5 @@
 import { detectDeviceInfoSync } from "@/utils/device-info";
+import { createId } from "@/utils/createId";
 import type {
   LibrarySnapshot,
   PairedDevice,
@@ -76,8 +77,8 @@ export async function saveLibrarySnapshot(
 
 export function createInitialLibrarySnapshot(): LibrarySnapshot {
   const detected = detectDeviceInfoSync();
-  const deviceId = crypto.randomUUID();
-  const profileId = crypto.randomUUID();
+  const deviceId = createId();
+  const profileId = createId();
   const now = new Date().toISOString();
   const currentDevice: PairedDevice = {
     id: deviceId,

@@ -35,3 +35,7 @@ Thumbs.db
 secrets/
 youtube-music-bot-arm64.tar
 youtube-music-cli-explore/
+
+# Browser test artifacts
+frontend/test-results/
+frontend/playwright-report/

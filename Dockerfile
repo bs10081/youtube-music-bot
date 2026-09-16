@@ -7,7 +7,7 @@ ARG YTDLP_VERSION=2026.08.19
 # Official multi-architecture Deno binary; no runtime download/evaluation installer.
 FROM denoland/deno:bin-2.9.6@sha256:4cf0029b9aeeeed5efcbb71828737f0d7c8c8a20072df960e51a5679ef0d21ba AS deno-runtime
 
-FROM node:20-slim AS frontend-builder
+FROM node:24-slim AS frontend-builder
 ARG APP_VERSION
 ARG APP_GIT_SHA
 ENV APP_VERSION=${APP_VERSION}

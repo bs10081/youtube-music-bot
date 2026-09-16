@@ -254,6 +254,13 @@ export const LyricsContent = ({
             return;
           }
 
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            suppressScrollEventsUntilRef.current = performance.now() + 120;
+            scrollArea.scrollTop = targetScrollTop;
+            stopAlignmentSession();
+            return;
+          }
+
           if (isLyricScrollAligned(scrollArea.scrollTop, targetScrollTop)) {
             stopAlignmentSession();
             return;

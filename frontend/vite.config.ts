@@ -29,6 +29,8 @@ export default defineConfig({
   server: {
     host: devHost,
     port: Number.isFinite(devPort) ? devPort : 5174,
+    strictPort: true,
+    fs: { allow: [path.resolve(__dirname)] },
     proxy: {
       "/api": {
         target: backendOrigin,

@@ -8,10 +8,11 @@ export interface SliderProps {
   onValueChange: (value: number[]) => void;
   disabled?: boolean;
   className?: string;
+  "aria-label"?: string;
 }
 
 const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
-  ({ value, max, step = 1, onValueChange, disabled, className }, ref) => {
+  ({ value, max, step = 1, onValueChange, disabled, className, "aria-label": label = "調整數值" }, ref) => {
     const [isDragging, setIsDragging] = React.useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +38,7 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
         </div>
         <input
           type="range"
+          aria-label={label}
           min={0}
           max={max}
           step={step}

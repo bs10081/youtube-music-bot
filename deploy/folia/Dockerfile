@@ -5,9 +5,9 @@
 # 補丁對應的修改原始碼公開於本 repo 的 deploy/folia/patches/，符合 AGPL-3.0 散布條件。
 
 # 固定 Folia commit；單一事實來源為 deploy/folia/FOLIA_COMMIT，CI 會斷言兩者一致
-ARG FOLIA_COMMIT=7d05426738837890005180cd74b503ce5400ede9
+ARG FOLIA_COMMIT=1b39fd868e2ddda95788f1baa839c032f3e7a285
 
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 ARG FOLIA_COMMIT
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \

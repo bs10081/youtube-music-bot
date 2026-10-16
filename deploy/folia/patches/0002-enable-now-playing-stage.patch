@@ -1,13 +1,13 @@
-diff --git a/src/stores/useSettingsUiStore.ts b/src/stores/useSettingsUiStore.ts
-index e2fb53b..f202028 100644
---- a/src/stores/useSettingsUiStore.ts
-+++ b/src/stores/useSettingsUiStore.ts
-@@ -909,7 +909,7 @@ export const useSettingsUiStore = create<SettingsUiState>((set, get) => ({
-     lyricsCustomFont: readStoredCustomLyricsFont(),
-     lyricFilterPattern: readStoredLyricFilterPattern(),
-     showOpenPanelCloseButton: getStoredBoolean('show_open_panel_close_button', true),
+diff --git a/src/stores/useStageSettingsStore.ts b/src/stores/useStageSettingsStore.ts
+index cc2ac55..c7dc6fe 100644
+--- a/src/stores/useStageSettingsStore.ts
++++ b/src/stores/useStageSettingsStore.ts
+@@ -71,7 +71,7 @@ export type StageSettingsState = {
+ };
+ 
+ export const useStageSettingsStore = create<StageSettingsState>((set, get) => ({
 -    enableNowPlayingStage: getStoredBoolean('enable_now_playing_stage', false),
 +    enableNowPlayingStage: getStoredBoolean('enable_now_playing_stage', true),
-     queueAddBehavior: readStoredQueueAddBehavior(),
-     audioOutputDeviceId: readStoredAudioOutputDeviceId(),
-     volume: readStoredVolume(),
+     enablePlayerCapStage: getStoredBoolean('enable_playercap_stage', false),
+     playerCapHost: getStoredString('playercap_host', 'localhost:8765'),
+     playerCapPlayer: getStoredString('playercap_player', ''),

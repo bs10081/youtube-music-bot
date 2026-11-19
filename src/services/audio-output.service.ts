@@ -48,8 +48,7 @@ function resolveInitialMode(): AudioOutputMode {
 }
 
 export class AudioOutputService {
-  // PulseAudio 切換僅在容器(Linux)部署有意義;原生 macOS 的 coreaudio 本來就跟隨系統
-  private readonly supported = process.platform === "linux";
+  private supported = false;
   private mode: AudioOutputMode = resolveInitialMode();
   private changeListeners: Array<(status: AudioOutputStatus) => void> = [];
 
@@ -77,10 +76,22 @@ export class AudioOutputService {
     try {
       const { stdout } = await execFileAsync("pactl", args, {
         timeout: PACTL_TIMEOUT_MS,
+        env: { ...process.env, LC_ALL: "C" },
       });
       return stdout;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const missingClient =
+        error instanceof Error && "code" in error && error.code === "ENOENT";
+      if (
+        !process.env.PULSE_SERVER?.trim() &&
+        (missingClient || message.includes("Connection failure: Connection refused"))
+      ) {
+        throw new AudioOutputError(
+          "Audio output switching requires a PulseAudio server",
+          "NOT_SUPPORTED",
+        );
+      }
       log.error("pactl command failed", { args, error: message });
       throw new AudioOutputError(`pactl ${args[0]} failed: ${message}`, "PACTL_FAILED");
     }
@@ -116,7 +127,7 @@ export class AudioOutputService {
    * 切了系統輸出),會廣播 audio_output 讓所有 WebUI 即時同步。
    */
   async getStatus(options?: { refresh?: boolean }): Promise<AudioOutputStatus> {
-    if (!this.supported) {
+    if (process.platform !== "linux") {
       return this.buildStatus();
     }
 
@@ -127,21 +138,33 @@ export class AudioOutputService {
     if (!cacheValid) {
       const previousDefault = this.cachedDefaultSink;
       const previousNames = this.cachedSinks.map((s) => s.name).join("\n");
+      const wasSupported = this.supported;
 
-      const { sinks, defaultSink } = await this.fetchSinks();
-      this.cachedSinks = sinks;
-      this.cachedDefaultSink = defaultSink;
+      try {
+        const { sinks, defaultSink } = await this.fetchSinks();
+        this.cachedSinks = sinks;
+        this.cachedDefaultSink = defaultSink;
+        this.supported = true;
+      } catch (error) {
+        if (!(error instanceof AudioOutputError) || error.code !== "NOT_SUPPORTED") {
+          throw error;
+        }
+        this.cachedSinks = [];
+        this.cachedDefaultSink = null;
+        this.supported = false;
+      }
       const hadSnapshot = this.cacheTimestamp !== 0;
-      this.cacheTimestamp = now;
+      this.cacheTimestamp = Date.now();
 
       const changed =
-        defaultSink !== previousDefault ||
-        sinks.map((s) => s.name).join("\n") !== previousNames;
+        this.supported !== wasSupported ||
+        this.cachedDefaultSink !== previousDefault ||
+        this.cachedSinks.map((s) => s.name).join("\n") !== previousNames;
 
       if (hadSnapshot && changed) {
         log.info("Audio output state changed externally", {
-          defaultSink,
-          sinkCount: sinks.length,
+          defaultSink: this.cachedDefaultSink,
+          sinkCount: this.cachedSinks.length,
         });
         this.emitChange(this.buildStatus());
       }
@@ -165,10 +188,11 @@ export class AudioOutputService {
    * (deploy/audio-follow)在下一輪輪詢完成
    */
   async setSystemMode(): Promise<AudioOutputStatus> {
+    await this.getStatus({ refresh: true });
     this.assertSupported();
     this.mode = "system";
     log.info("Audio output mode set to system (host watcher will align)");
-    const status = await this.getStatus({ refresh: true });
+    const status = this.buildStatus();
     this.emitChange(status);
     return status;
   }
@@ -178,9 +202,9 @@ export class AudioOutputService {
    * standby mpv session),再把現有 mpv sink-input 即時搬過去
    */
   async setManualSink(sinkName: string): Promise<AudioOutputStatus> {
+    const { sinks } = await this.getStatus({ refresh: true });
     this.assertSupported();
 
-    const { sinks } = await this.fetchSinks();
     const target = sinks.find((sink) => sink.name === sinkName);
     if (!target) {
       throw new AudioOutputError(
@@ -236,7 +260,7 @@ export class AudioOutputService {
   private assertSupported(): void {
     if (!this.supported) {
       throw new AudioOutputError(
-        "Audio output switching is only supported in the container (PulseAudio) deployment; native macOS follows the system output automatically",
+        "Audio output switching requires a PulseAudio server on Linux",
         "NOT_SUPPORTED",
       );
     }

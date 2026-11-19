@@ -6,7 +6,7 @@ import type {
   PlaybackSettings,
 } from "../types/index.ts";
 import { getPlayerService } from "./player.service.ts";
-import { getMusicService } from "./music.service.ts";
+import { getMusicService, YtDlpCommandError } from "./music.service.ts";
 import { pushRecentTrackId, selectRadioCandidates } from "./radio.helpers.ts";
 import { log } from "../utils/logger.ts";
 
@@ -89,7 +89,7 @@ class QueueService {
       if (event.eof === true) {
         this.lastEofTimestamp = Date.now(); // 記錄 EOF 時間
         log.info("Track ended, playing next...");
-        void this.playNext();
+        this.playNextInBackground();
         return;
       }
 
@@ -621,8 +621,16 @@ class QueueService {
           trackTitle: nextTrack.title,
         });
 
-        // 恢復佇列並重置狀態，避免歌曲因自動播放失敗而直接消失。
-        this.queue.unshift(nextTrack);
+        const unavailable =
+          playError instanceof YtDlpCommandError &&
+          !playError.details.timedOut &&
+          playError.details.stderr.split(/\r?\n/).some((line) =>
+            line.trim() === `ERROR: [youtube] ${nextTrack.videoId}: Video unavailable`
+          );
+
+        if (!unavailable) {
+          this.queue.unshift(nextTrack);
+        }
         this.currentTrack = null;
         this.currentPosition = 0;
         this.currentDuration = 0;
@@ -630,6 +638,10 @@ class QueueService {
         this.broadcastQueueChange();
         this.broadcastState();
         this.broadcastPlayError(errorMessage, nextTrack);
+
+        if (unavailable && this.queue.length > 0) {
+          return this.playNext();
+        }
         void this.syncNextTrackPreload({ force: true });
 
         // 拋出錯誤，讓調用者知道播放失敗
@@ -693,7 +705,13 @@ class QueueService {
    */
   skip(): void {
     log.info("Skipping current track");
-    void this.playNext();
+    this.playNextInBackground();
+  }
+
+  private playNextInBackground(): void {
+    void this.playNext().catch((error) => {
+      log.error("Could not advance playback", { error });
+    });
   }
 
   setPlaybackSettings(

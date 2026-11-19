@@ -3,6 +3,7 @@ import type { Track } from "../types/index.ts";
 import {
   __resetMusicServiceForTests,
   getMusicService,
+  YtDlpCommandError,
 } from "../services/music.service.ts";
 import {
   __resetPlayerServiceForTests,
@@ -178,6 +179,47 @@ describe("QueueService autoplay after adding a searched track", () => {
         radioGenerated: false,
       },
     ]);
+  });
+
+  test("continues playback when YouTube confirms the first track is unavailable", async () => {
+    const queueService = getQueueService();
+    const playerService = getPlayerService();
+    const musicService = getMusicService();
+    const playableTrack = { ...searchedTrack, videoId: "next-track", title: "Next Song" };
+    const playedTracks: string[] = [];
+    const playErrors: Array<Track | null> = [];
+
+    queueService.onPlayError(({ track }) => playErrors.push(track));
+    suppressNextTrackPreload(queueService);
+    stubMethod(playerService, "isCurrentlyPlaying", () => false);
+    stubMethod(playerService, "play", async (videoId) => {
+      expect(videoId).toBe(searchedTrack.videoId);
+      throw new Error("mpv failed to load media");
+    });
+    stubMethod(playerService, "playUrl", async (_url, options) => {
+      playedTracks.push(options?.trackId ?? "");
+    });
+    stubMethod(musicService, "getLyrics", async () => []);
+    stubMethod(musicService, "getStreamUrl", async (videoId) => {
+      if (videoId === searchedTrack.videoId) {
+        const stderr = `ERROR: [youtube] ${videoId}: Video unavailable`;
+        throw new YtDlpCommandError(stderr, {
+          executable: "yt-dlp",
+          args: [],
+          stdout: "",
+          stderr,
+          timedOut: false,
+        });
+      }
+      return { url: `https://stream/${videoId}`, source: "yt-dlp" };
+    });
+
+    await queueService.appendTracksToQueue([searchedTrack, playableTrack]);
+
+    expect(queueService.getState().currentTrack?.videoId).toBe(playableTrack.videoId);
+    expect(queueService.getQueue()).toEqual([]);
+    expect(playedTracks).toEqual([playableTrack.videoId]);
+    expect(playErrors.map((track) => track?.videoId)).toEqual([searchedTrack.videoId]);
   });
 
   test("should reject addToQueue when autoplay fails and keep the track queued", async () => {

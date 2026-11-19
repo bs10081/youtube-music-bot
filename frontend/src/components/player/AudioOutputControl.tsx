@@ -115,7 +115,7 @@ export const AudioOutputControl = ({
           </div>
           <p className="text-xs leading-5 text-[var(--text-secondary)]">
             {status && !status.supported
-              ? "目前為原生模式,輸出裝置自動跟隨 macOS 系統設定。"
+              ? "目前使用主機的音訊輸出設定。"
               : "選擇播放裝置,或跟隨 macOS 系統的音訊輸出設定。"}
           </p>
         </div>
